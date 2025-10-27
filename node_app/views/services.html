@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="Manage API Services - Add, Edit, Delete monitored endpoints"
+    />
+    <title>Services Management - API Health Monitor</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <!-- Navigation Header -->
+    <header class="header">
+      <div class="container">
+        <div class="nav-wrapper">
+          <div class="logo">
+            <span class="logo-icon">🎯</span>
+            <span class="logo-text">API Health Monitor</span>
+          </div>
+          <nav class="nav">
+            <a href="/" class="nav-link">Dashboard</a>
+            <a href="/services-page" class="nav-link active">Services</a>
+            <a href="/team" class="nav-link">Team</a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Services Management</h1>
+            <p class="page-subtitle">
+              Add, edit, or remove monitored API endpoints
+            </p>
+          </div>
+          <button class="btn btn-primary" onclick="showAddServiceForm()">
+            <span class="btn-icon">➕</span> Add New Service
+          </button>
+        </div>
+
+        <!-- Add/Edit Service Form -->
+        <div id="serviceFormSection" class="form-section" style="display: none">
+          <div class="form-header">
+            <h2 id="formTitle">Add New Service</h2>
+            <button class="close-btn" onclick="closeServiceForm()">
+              &times;
+            </button>
+          </div>
+          <form id="serviceForm" onsubmit="handleServiceSubmit(event)">
+            <input type="hidden" id="serviceId" name="id" />
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="serviceName">Service Name *</label>
+                <input
+                  type="text"
+                  id="serviceName"
+                  name="name"
+                  required
+                  placeholder="e.g., GitHub API"
+                  minlength="3"
+                  maxlength="255"
+                />
+                <span class="form-hint"
+                  >A descriptive name for the service</span
+                >
+              </div>
+
+              <div class="form-group">
+                <label for="serviceUrl">Service URL *</label>
+                <input
+                  type="url"
+                  id="serviceUrl"
+                  name="url"
+                  required
+                  placeholder="https://api.example.com"
+                />
+                <span class="form-hint">Full HTTP/HTTPS URL to monitor</span>
+              </div>
+            </div>
+
+            <div class="form-row">
+              <div class="form-group">
+                <label for="checkInterval">Check Interval (seconds)</label>
+                <input
+                  type="number"
+                  id="checkInterval"
+                  name="check_interval"
+                  min="30"
+                  max="86400"
+                  value="300"
+                />
+                <span class="form-hint">How often to check (30-86400)</span>
+              </div>
+
+              <div class="form-group">
+                <label for="expectedStatus">Expected Status Code</label>
+                <input
+                  type="number"
+                  id="expectedStatus"
+                  name="expected_status"
+                  min="100"
+                  max="599"
+                  value="200"
+                />
+                <span class="form-hint">HTTP status code (100-599)</span>
+              </div>
+
+              <div class="form-group">
+                <label for="timeout">Timeout (milliseconds)</label>
+                <input
+                  type="number"
+                  id="timeout"
+                  name="timeout"
+                  min="1000"
+                  max="30000"
+                  value="5000"
+                />
+                <span class="form-hint">Request timeout (1000-30000)</span>
+              </div>
+            </div>
+
+            <div class="form-actions">
+              <button
+                type="button"
+                class="btn btn-secondary"
+                onclick="closeServiceForm()"
+              >
+                Cancel
+              </button>
+              <button type="submit" class="btn btn-primary" id="submitBtn">
+                <span class="btn-icon">💾</span> Save Service
+              </button>
+            </div>
+          </form>
+        </div>
+
+        <!-- Services Table -->
+        <div class="section">
+          <div class="table-wrapper">
+            <table class="data-table" id="servicesTable">
+              <thead>
+                <tr>
+                  <th>Service Name</th>
+                  <th>URL</th>
+                  <th>Status</th>
+                  <th>Check Interval</th>
+                  <th>Last Checked</th>
+                  <th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="servicesTableBody">
+                <tr>
+                  <td colspan="6" class="loading-cell">
+                    <div class="loading-spinner"></div>
+                    Loading services...
+                  </td>
+                </tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Delete Confirmation Modal -->
+    <div id="deleteModal" class="modal">
+      <div class="modal-content">
+        <h3>Confirm Deletion</h3>
+        <p>
+          Are you sure you want to delete this service? This action cannot be
+          undone.
+        </p>
+        <div class="modal-actions">
+          <button class="btn btn-secondary" onclick="closeDeleteModal()">
+            Cancel
+          </button>
+          <button class="btn btn-danger" onclick="confirmDelete()">
+            Delete
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2025 API Health Dashboard. Built for DevOps Excellence.</p>
+      </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
+    <script src="/js/utils.js"></script>
+    <script src="/js/services.js"></script>
+  </body>
+</html>

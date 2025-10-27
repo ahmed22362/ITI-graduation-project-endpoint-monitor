@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta
+      name="description"
+      content="API Health Dashboard - Monitor your API endpoints in real-time"
+    />
+    <title>Dashboard - API Health Monitor</title>
+    <link rel="stylesheet" href="/css/style.css" />
+  </head>
+  <body>
+    <!-- Navigation Header -->
+    <header class="header">
+      <div class="container">
+        <div class="nav-wrapper">
+          <div class="logo">
+            <span class="logo-icon">🎯</span>
+            <span class="logo-text">API Health Monitor</span>
+          </div>
+          <nav class="nav">
+            <a href="/" class="nav-link active">Dashboard</a>
+            <a href="/services-page" class="nav-link">Services</a>
+            <a href="/team" class="nav-link">Team</a>
+          </nav>
+        </div>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="main-content">
+      <div class="container">
+        <!-- Page Header -->
+        <div class="page-header">
+          <div>
+            <h1 class="page-title">Dashboard</h1>
+            <p class="page-subtitle">
+              Real-time monitoring of your API endpoints
+            </p>
+          </div>
+          <div class="header-actions">
+            <button class="btn btn-secondary" onclick="refreshDashboard()">
+              <span class="btn-icon">🔄</span> Refresh
+            </button>
+            <a href="/services-page" class="btn btn-primary">
+              <span class="btn-icon">➕</span> Add Service
+            </a>
+          </div>
+        </div>
+
+        <!-- Metrics Summary -->
+        <div class="metrics-grid" id="metricsGrid">
+          <div class="metric-card">
+            <div class="metric-icon">📊</div>
+            <div class="metric-content">
+              <div class="metric-label">Total Services</div>
+              <div class="metric-value" id="totalServices">-</div>
+            </div>
+          </div>
+          <div class="metric-card metric-success">
+            <div class="metric-icon">✅</div>
+            <div class="metric-content">
+              <div class="metric-label">Healthy</div>
+              <div class="metric-value" id="healthyServices">-</div>
+            </div>
+          </div>
+          <div class="metric-card metric-danger">
+            <div class="metric-icon">❌</div>
+            <div class="metric-content">
+              <div class="metric-label">Unhealthy</div>
+              <div class="metric-value" id="unhealthyServices">-</div>
+            </div>
+          </div>
+          <div class="metric-card metric-info">
+            <div class="metric-icon">📈</div>
+            <div class="metric-content">
+              <div class="metric-label">Success Rate</div>
+              <div class="metric-value" id="successRate">-</div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Services Grid -->
+        <div class="section">
+          <div class="section-header">
+            <h2 class="section-title">Monitored Services</h2>
+            <div class="auto-refresh">
+              <span class="auto-refresh-text"
+                >Auto-refresh: <strong>30s</strong></span
+              >
+              <div
+                class="loading-spinner"
+                id="loadingIndicator"
+                style="display: none"
+              ></div>
+            </div>
+          </div>
+
+          <!-- Loading State -->
+          <div id="loadingState" class="loading-state">
+            <div class="loading-spinner large"></div>
+            <p>Loading services...</p>
+          </div>
+
+          <!-- Empty State -->
+          <div id="emptyState" class="empty-state" style="display: none">
+            <div class="empty-icon">📭</div>
+            <h3>No Services Found</h3>
+            <p>Start monitoring your APIs by adding your first service</p>
+            <a href="/services-page" class="btn btn-primary">Add Service</a>
+          </div>
+
+          <!-- Services Grid -->
+          <div
+            id="servicesGrid"
+            class="services-grid"
+            style="display: none"
+          ></div>
+        </div>
+      </div>
+    </main>
+
+    <!-- Footer -->
+    <footer class="footer">
+      <div class="container">
+        <p>&copy; 2025 API Health Dashboard. Built for DevOps Excellence.</p>
+      </div>
+    </footer>
+
+    <!-- Toast Notification -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Scripts -->
+    <script src="/js/utils.js"></script>
+    <script src="/js/dashboard.js"></script>
+  </body>
+</html>
