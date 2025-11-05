@@ -39,3 +39,7 @@ Thumbs.db
 # Build
 dist/
 build/
+ 
+
+#test
+**/tests/*
