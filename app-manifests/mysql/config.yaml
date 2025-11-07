@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: config
+data:
+  MYSQL_DATABASE: api_health_dashboard
+  MYSQL_USER: apihealth

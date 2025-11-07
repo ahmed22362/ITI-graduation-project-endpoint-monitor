@@ -17,12 +17,24 @@ spec:
           image: mysql:8.0
           env:
             - name: MYSQL_ROOT_PASSWORD
-              value: rootpassword
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: MYSQL_ROOT_PASSWORD
             - name: MYSQL_DATABASE
-              value: api_health_dashboard
+              valueFrom:
+                configMapKeyRef:
+                  name: config
+                  key: MYSQL_DATABASE
             - name: MYSQL_USER
-              value: apihealth
+              valueFrom:
+                configMapKeyRef:
+                  name: config
+                  key: MYSQL_USER
             - name: MYSQL_PASSWORD
-              value: apihealth123
+              valueFrom:
+                secretKeyRef:
+                  name: secret
+                  key: MYSQL_PASSWORD
           ports:
             - containerPort: 3306

@@ -3,10 +3,10 @@ kind: Deployment
 metadata:
   name: redis
 spec:
-  replicas: 1
   selector:
     matchLabels:
       app: redis
+  replicas: 1
   template:
     metadata:
       labels:
@@ -17,3 +17,12 @@ spec:
           image: redis:7-alpine
           ports:
             - containerPort: 6379
+          command: ["redis-server", "/usr/local/etc/redis/redis.conf"]
+          volumeMounts:
+            - name: config
+              mountPath: /usr/local/etc/redis/redis.conf
+              subPath: redis.conf
+      volumes:
+        - name: config
+          configMap:
+            name: redis-config
