@@ -1,0 +1,13 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: api-health-config
+data:
+  NODE_ENV: "production"
+  PORT: "3000"
+  DB_HOST: "mysql"
+  DB_NAME: "api_health_dashboard"
+  DB_USER: "apihealth"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  CACHE_TTL: "300"
