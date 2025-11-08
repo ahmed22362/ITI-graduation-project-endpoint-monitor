@@ -76,4 +76,17 @@ resource "aws_eks_node_group" "eks-demo-node-group" {
     # Add dependency on the Launch Template
     var.launch-template-id, 
   ]
+<<<<<<< HEAD
 }
+=======
+}
+resource "aws_security_group" "eks_nodes_sg" {
+  vpc_id = var.vpc-id
+  name   = "${var.cluster_name}-nodes-sg"
+  tags   = var.tags
+}
+
+output "eks_node_sg_id" {
+  value = aws_security_group.eks_nodes_sg.id
+}
+>>>>>>> e33acf5 (adding the rds + secrets infra)

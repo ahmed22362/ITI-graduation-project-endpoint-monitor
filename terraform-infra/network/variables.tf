@@ -13,6 +13,10 @@ variable "az-c" {
   type = string
   default = "us-east-1c"
 }
+# variable "az-a" {
+#   type = string
+#   default = "us-east-1a"
+# }
 variable "tags" {
   type = map(string)
 }

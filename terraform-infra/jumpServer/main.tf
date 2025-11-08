@@ -81,8 +81,16 @@ resource "aws_instance" "bastion_host" {
   }
 }
 
+<<<<<<< HEAD
 # --- 4. Outputs ---
 output "bastion_public_ip" {
   description = "The public IP address of the Bastion Host"
   value       = aws_instance.bastion_host.public_ip
 }
+=======
+# # --- 4. Outputs ---
+# output "bastion_public_ip" {
+#   description = "The public IP address of the Bastion Host"
+#   value       = aws_instance.bastion_host.public_ip
+# }
+>>>>>>> e33acf5 (adding the rds + secrets infra)

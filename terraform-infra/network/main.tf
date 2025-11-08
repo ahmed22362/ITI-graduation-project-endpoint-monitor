@@ -51,7 +51,13 @@ resource "aws_subnet" "private-subnet-2" {
   availability_zone = var.az-c
   tags = merge(var.tags,local.additional_tags)
 }
-
+# resource "aws_subnet" "private-subnet-3" {
+#   vpc_id = aws_vpc.demo-eks-cluster-vpc.id
+#   cidr_block = cidrsubnet(var.cidr_block,8,120)
+#   #availability_zone = data.aws_availability_zones.available.names[1]
+#   availability_zone = var.az-a
+#   tags = merge(var.tags,local.additional_tags)
+# }
 resource "aws_internet_gateway" "eks-igw" {
   vpc_id = aws_vpc.demo-eks-cluster-vpc.id
   tags = var.tags
@@ -111,3 +117,8 @@ resource "aws_route_table_association" "private-rt-assoc-2" {
   subnet_id = aws_subnet.private-subnet-2.id
   
 }
+# resource "aws_route_table_association" "private-rt-assoc-3" {
+#   route_table_id = aws_route_table.private-rt.id
+#   subnet_id = aws_subnet.private-subnet-3.id
+  
+# }
