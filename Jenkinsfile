@@ -63,53 +63,30 @@ pipeline {
         stage('Build & Push with Kaniko') {
             steps {
                 container('kaniko') {
-                    withAWS(credentials: 'AWS', region: "${AWS_REGION}") {
-                        script {
-                            echo "🔧 Preparing ECR authentication for Kaniko..."
+                    script {
+                        echo "� Building and pushing image with Kaniko..."
+                        echo "📋 Using pre-configured Docker auth from previous stage"
+                        
+                        sh '''
+                            echo "Verifying Kaniko auth config..."
+                            ls -la /kaniko/.docker/ || echo "No auth config found, will use IAM role"
                             
-                            sh '''
-                                mkdir -p /kaniko/.docker
-                                
-                                echo "Getting ECR login token..."
-                                AUTH_TOKEN=$(aws ecr get-login-password --region ${AWS_REGION})
-                                
-                                if [ -z "$AUTH_TOKEN" ]; then
-                                    echo "❌ Failed to get ECR auth token"
-                                    exit 1
-                                fi
-                                
-                                echo "Creating Kaniko auth config..."
-                                cat > /kaniko/.docker/config.json << EOF
-{
-  "auths": {
-    "https://${ECR_REGISTRY}": {
-      "auth": "$(echo -n "AWS:${AUTH_TOKEN}" | base64 -w 0)"
-    }
-  }
-}
-EOF
-                                
-                                echo "✅ Kaniko auth config created:"
-                                cat /kaniko/.docker/config.json | jq '.' || cat /kaniko/.docker/config.json
-                            '''
-
-                            echo "🚀 Building and pushing image with Kaniko..."
-                            sh '''
-                                /kaniko/executor \
-                                  --context ${WORKSPACE}/node_app \
-                                  --dockerfile ${WORKSPACE}/node_app/Dockerfile \
-                                  --destination ${IMAGE_NAME} \
-                                  --destination ${IMAGE_LATEST} \
-                                  --use-new-run \
-                                  --cache=true \
-                                  --single-snapshot \
-                                  --verbosity=info
-                            '''
-                        }
+                            echo "Starting Kaniko build..."
+                            /kaniko/executor \\
+                              --context ${WORKSPACE}/node_app \\
+                              --dockerfile ${WORKSPACE}/node_app/Dockerfile \\
+                              --destination ${IMAGE_NAME} \\
+                              --destination ${IMAGE_LATEST} \\
+                              --use-new-run \\
+                              --cache=true \\
+                              --single-snapshot \\
+                              --verbosity=info
+                        '''
                     }
                 }
             }
         }
+    }
     }
     
     post {
