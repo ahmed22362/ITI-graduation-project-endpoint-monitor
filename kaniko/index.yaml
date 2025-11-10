@@ -1,16 +1,16 @@
 apiVersion: v1
 kind: Pod
+metadata:
+  name: kaniko-builder
+  namespace: jenkins
 spec:
-  serviceAccountName: jenkins
+  serviceAccountName: jenkins-agent
   containers:
     - name: kaniko
-      image: gcr.io/kaniko-project/executor:latest
+      image: gcr.io/kaniko-project/executor:debug
+      imagePullPolicy: IfNotPresent
       command:
-        - cat
-      tty: true
-      volumeMounts:
-        - name: kaniko-secret
-          mountPath: /kaniko/.docker/
-  volumes:
-    - name: kaniko-secret
-      emptyDir: {}
+        - sleep
+      args:
+        - 9999999
+  restartPolicy: Never
