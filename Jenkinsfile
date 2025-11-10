@@ -42,7 +42,7 @@ pipeline {
                 script {
                     echo '🐳 Building Docker image using Kaniko...'
                     
-                    withAWS(credentials: 'aws-credentials', region: "${AWS_REGION}") {
+                    withAWS(credentials: 'AWS', region: "${AWS_REGION}") {
                         sh """
                             mkdir -p /kaniko/.docker
                             echo '{"credsStore":"ecr-login"}' > /kaniko/.docker/config.json
