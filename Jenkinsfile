@@ -48,15 +48,24 @@ pipeline {
                         script {
                             echo "🔧 Preparing ECR authentication for Kaniko..."
                             
-                            sh '''
-                                mkdir -p /kaniko/.docker
-                                AUTH=$(aws ecr get-login-password --region ${AWS_REGION} | base64 -w 0)
-                                ACCOUNT="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
-                                echo -n "{\"auths\":{\"https://${ACCOUNT}\":{\"auth\":\"AWS:${AUTH}\"}}}" > /kaniko/.docker/config.json
-                                echo "--- Kaniko Docker config ---"
-                                cat /kaniko/.docker/config.json
-                                echo "-----------------------------"
-                            '''
+                            sh """
+                            mkdir -p /kaniko/.docker
+
+                            ACCOUNT="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+
+                            # Get ECR token and encode properly
+                            AUTH_TOKEN=$(aws ecr get-login-password --region ${AWS_REGION})
+                            AUTH_BASE64=$(echo -n "AWS:${AUTH_TOKEN}" | base64 -w 0)
+
+                            # Write valid JSON config
+                            echo -n "{\"auths\":{\"https://${ACCOUNT}\":{\"auth\":\"${AUTH_BASE64}\"}}}" > /kaniko/.docker/config.json
+
+                            echo "--- Kaniko Docker config ---"
+                            cat /kaniko/.docker/config.json
+                            echo ""
+                            echo "--- End of file ---"
+                            """
+
 
                             echo "🚀 Building and pushing image with Kaniko..."
                             sh """
