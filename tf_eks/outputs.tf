@@ -76,13 +76,23 @@ output "jenkins_role_arn" {
   value       = aws_iam_role.jenkins.arn
 }
 
-# Jenkins Load Balancer URL
+# Jenkins Load Balancer URLs
 output "jenkins_url" {
-  description = "Jenkins URL via Terraform-managed Load Balancer"
-  value       = "http://${aws_lb.jenkins.dns_name}:8080"
+  description = "Jenkins URL via Terraform-managed ALB"
+  value       = "http://${aws_lb.jenkins.dns_name}"
 }
 
-output "jenkins_load_balancer_dns" {
-  description = "DNS name of Jenkins Load Balancer"
+output "jenkins_alb_dns" {
+  description = "DNS name of Jenkins Application Load Balancer"
   value       = aws_lb.jenkins.dns_name
+}
+
+output "jenkins_agent_nlb_dns" {
+  description = "DNS name of Jenkins Agent Network Load Balancer (internal)"
+  value       = aws_lb.jenkins_agent.dns_name
+}
+
+output "jenkins_web_target_group_arn" {
+  description = "ARN of Jenkins Web UI target group"
+  value       = aws_lb_target_group.jenkins_web.arn
 }
