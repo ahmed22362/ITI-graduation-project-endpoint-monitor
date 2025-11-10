@@ -1,6 +1,9 @@
 pipeline {
-    agent any
-    
+    agent {
+        kubernetes {
+        yamlFile 'kaniko/index.yaml'
+        }
+    }
     environment {
         AWS_REGION       = 'eu-north-1'
         AWS_ACCOUNT_ID   = '428346553093'
@@ -37,31 +40,41 @@ pipeline {
             }
         }
         
-        stage('Build Image with Kaniko') {
-            steps {
-                script {
-                    echo '🐳 Building Docker image using Kaniko...'
-                    
-                    withAWS(credentials: 'AWS', region: "${AWS_REGION}") {
-                        sh """
-                            mkdir -p /kaniko/.docker
-                            echo '{"credsStore":"ecr-login"}' > /kaniko/.docker/config.json
-                        """
+    
+    stage('Build & Push with Kaniko') {
+      steps {
+        container('kaniko') {
+          withAWS(credentials: 'aws-credentials', region: "${AWS_REGION}") {
+            script {
+              echo "🔧 Preparing ECR authentication for Kaniko..."
+              
+              sh '''
+                mkdir -p /kaniko/.docker
+                AUTH=$(aws ecr get-login-password --region ${AWS_REGION} | base64 -w 0)
+                ACCOUNT="${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+                echo -n "{\"auths\":{\"https://${ACCOUNT}\":{\"auth\":\"AWS:${AUTH}\"}}}" > /kaniko/.docker/config.json
+                echo "--- Kaniko Docker config ---"
+                cat /kaniko/.docker/config.json
+                echo "-----------------------------"
+              '''
 
-                        sh """
-                            /kaniko/executor \
-                              --context ${WORKSPACE} \
-                              --dockerfile ${WORKSPACE}/Dockerfile \
-                              --destination ${IMAGE_NAME} \
-                              --destination ${IMAGE_LATEST} \
-                              --cache=true \
-                              --cache-ttl=12h
-                        """
-                    }
-                }
+              echo "🚀 Building and pushing image with Kaniko..."
+              sh """
+                /kaniko/executor \
+                  --context ${WORKSPACE} \
+                  --dockerfile ${WORKSPACE}/Dockerfile \
+                  --destination ${IMAGE_NAME} \
+                  --destination ${IMAGE_LATEST} \
+                  --use-new-run \
+                  --cache=true \
+                  --single-snapshot
+              """
             }
+          }
         }
+      }
     }
+
     
     post {
         success {
