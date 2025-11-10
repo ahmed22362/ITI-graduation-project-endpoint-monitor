@@ -61,8 +61,8 @@ pipeline {
                             echo "🚀 Building and pushing image with Kaniko..."
                             sh """
                                 /kaniko/executor \\
-                                  --context ${WORKSPACE}/node_app \\                
-                                  --dockerfile ${WORKSPACE}/node_app/Dockerfile \\  
+                                  --context ${WORKSPACE}/node_app \\
+                                  --dockerfile ${WORKSPACE}/node_app/Dockerfile \\
                                   --destination ${IMAGE_NAME} \\
                                   --destination ${IMAGE_LATEST} \\
                                   --use-new-run \\
