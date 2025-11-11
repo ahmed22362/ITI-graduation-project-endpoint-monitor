@@ -31,7 +31,7 @@ spec:
       tty: true
 
     - name: kaniko
-      image: 428346553093.dkr.ecr.eu-north-1.amazonaws.com/kaniko-aws:latest
+      image: gcr.io/kaniko-project/executor:debug
       command: ['/busybox/sleep']
       args: ['99999']
       tty: true
