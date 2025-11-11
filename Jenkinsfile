@@ -46,6 +46,7 @@ pipeline {
             container('kaniko') {
                 script {
                     sh '''
+                        set +e  # Don't exit on errors
                         echo "=== Checking Pod Identity in Kaniko Container ==="
                         
                         # Check Pod Identity environment setup
@@ -54,21 +55,21 @@ pipeline {
                         echo "AWS_SDK_LOAD_CONFIG: ${AWS_SDK_LOAD_CONFIG:-not set}"
                         echo "AWS_EC2_METADATA_DISABLED: ${AWS_EC2_METADATA_DISABLED:-not set}"
                         
-                        echo "=== Testing IMDS Access ==="
-                        # Test if we can reach IMDS (Pod Identity endpoint)
-                        curl -s -m 5 http://169.254.169.254/latest/meta-data/instance-id || echo "❌ Cannot reach IMDS"
-                        
-                        echo "=== Testing AWS STS via Pod Identity ==="
-                        # Try to get caller identity using Pod Identity
-                        timeout 30 aws sts get-caller-identity --region eu-north-1 || echo "❌ STS call failed"
-                        
-                        echo "=== Testing ECR Authentication ==="
-                        # Test ECR authentication
-                        timeout 30 aws ecr get-authorization-token --region eu-north-1 || echo "❌ ECR auth failed"
-                        
-                        echo "=== Service Account Info ==="
+                        echo "=== Basic Environment Check ==="
                         echo "Running as user: $(whoami)"
-                        echo "Service Account: ${HOSTNAME}"
+                        echo "Hostname: ${HOSTNAME}"
+                        echo "Available commands:"
+                        which aws || echo "aws not found"
+                        which curl || echo "curl not found"
+                        
+                        echo "=== Testing IMDS Access (5 second timeout) ==="
+                        timeout 5 curl -s http://169.254.169.254/latest/meta-data/instance-id && echo "✅ IMDS accessible" || echo "❌ IMDS not accessible"
+                        
+                        echo "=== Testing AWS STS (10 second timeout) ==="
+                        timeout 10 aws sts get-caller-identity --region eu-north-1 && echo "✅ STS call succeeded" || echo "❌ STS call failed"
+                        
+                        echo "=== Debug completed ==="
+                        set -e  # Re-enable exit on errors
                     '''
                 }
             }
