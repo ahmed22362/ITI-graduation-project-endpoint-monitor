@@ -1,16 +1,56 @@
 apiVersion: v1
 kind: Pod
 metadata:
-  name: kaniko-builder
-  namespace: jenkins
+  name: jenkins-agent-pod
+  labels:
+    app: jenkins-agent
 spec:
   serviceAccountName: jenkins
   containers:
-    - name: kaniko
-      image: gcr.io/kaniko-project/executor:debug
-      imagePullPolicy: IfNotPresent
+    - name: git
+      image: alpine/git:latest
       command:
         - sleep
       args:
-        - 9999999
-  restartPolicy: Never
+        - 99d
+      tty: true
+
+    - name: helm
+      image: dtzar/helm-kubectl:latest
+      command:
+        - sleep
+      args:
+        - 99d
+      tty: true
+
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      command:
+        - /busybox/sleep
+      args:
+        - '99999'
+      tty: true
+
+    - name: tester
+      image: ubuntu
+      command:
+        - sleep
+      args:
+        - 99d
+      tty: true
+
+    - name: mailer
+      image: alpine:latest
+      command:
+        - sleep
+      args:
+        - 99d
+      tty: true
+
+    - name: argocd-syncer
+      image: bstar999/argocd-syncer
+      command:
+        - sleep
+      args:
+        - 99d
+      tty: true
