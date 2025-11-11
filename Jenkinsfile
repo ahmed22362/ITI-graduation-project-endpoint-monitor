@@ -113,104 +113,89 @@ pipeline {
             }
         }
         
-    stage('Debug Pod Identity in Kaniko') {
-        steps {
-            container('kaniko') {
-                script {
-                    echo '═══════════════════════════════════════════════════════'
-                    echo '🔧 STAGE 4: Debug Pod Identity'
-                    echo '═══════════════════════════════════════════════════════'
-                    
-                    sh '''
-                        set +e  # Don't exit on errors
-                        
-                        echo "🔐 AWS Authentication Check"
-                        echo "──────────────────────────────────────────────────────"
-                        echo "AWS_REGION: ${AWS_REGION}"
-                        echo "AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-not set}"
-                        echo "AWS_SDK_LOAD_CONFIG: ${AWS_SDK_LOAD_CONFIG:-not set}"
-                        echo "AWS_EC2_METADATA_DISABLED: ${AWS_EC2_METADATA_DISABLED:-not set}"
-                        echo ""
-                        
-                        echo "👤 Runtime Environment"
-                        echo "──────────────────────────────────────────────────────"
-                        echo "User: $(whoami)"
-                        echo "Hostname: ${HOSTNAME}"
-                        echo "Pod Name: ${POD_NAME:-not set}"
-                        echo "Pod Namespace: ${POD_NAMESPACE:-not set}"
-                        echo ""
-                        
-                        echo "🔍 Available Commands"
-                        echo "──────────────────────────────────────────────────────"
-                        which aws && echo "✅ aws-cli available" || echo "❌ aws-cli not found"
-                        which curl && echo "✅ curl available" || echo "❌ curl not found"
-                        which /kaniko/executor && echo "✅ kaniko available" || echo "❌ kaniko not found"
-                        echo ""
-                        
-                        echo "🌐 IMDS Connectivity Test (5s timeout)"
-                        echo "──────────────────────────────────────────────────────"
-                        if timeout 5 curl -s http://169.254.169.254/latest/meta-data/instance-id > /dev/null 2>&1; then
-                            echo "✅ IMDS accessible"
-                            INSTANCE_ID=$(timeout 5 curl -s http://169.254.169.254/latest/meta-data/instance-id)
-                            echo "Instance ID: ${INSTANCE_ID}"
-                        else
-                            echo "❌ IMDS not accessible (expected for Pod Identity)"
-                        fi
-                        echo ""
-                        
-                        echo "🔑 AWS STS Identity Test (10s timeout)"
-                        echo "──────────────────────────────────────────────────────"
-                        if timeout 10 aws sts get-caller-identity --region eu-north-1 2>&1; then
-                            echo "✅ Successfully authenticated with AWS"
-                        else
-                            echo "⚠️  STS call failed - checking ECR authentication method"
-                        fi
-                        echo ""
-                        
-                        echo "✅ Debug completed"
-                        set -e  # Re-enable exit on errors
-                    '''
-                }
-            }
-        }
-    }
-        stage('Prepare Build Context') {
-            steps {
-                script {
-                    echo "� Preparing build context for Kaniko..."
-                    echo "✅ Using Jenkins service account with ECR permissions"
-                    echo "IAM Role: ${env.JENKINS_ROLE_ARN ?: 'Using default service account role'}"
-                }
-            }
-        }
-
-        stage('Verify Environment') {
-            steps {
-                script {
-                    echo "🔍 Verifying build environment..."
-                    echo "Workspace: ${WORKSPACE}"
-                    echo "Build Number: ${BUILD_NUMBER}"
-                    echo "ECR Registry: ${ECR_REGISTRY}"
-                    echo "Image Name: ${IMAGE_NAME}"
-                    
-                    sh '''
-                        echo "Checking workspace structure:"
-                        ls -la ${WORKSPACE}
-                        echo "Checking node_app:"
-                        ls -la ${WORKSPACE}/node_app || echo "node_app not found"
-                        echo "Checking Dockerfile:"
-                        ls -la ${WORKSPACE}/node_app/Dockerfile || echo "Dockerfile not found"
-                    '''
-                }
-            }
-        }
-
-        stage('Build & Push with Kaniko') {
+        stage('🔧 Debug Pod Identity') {
             steps {
                 container('kaniko') {
                     script {
                         echo '═══════════════════════════════════════════════════════'
-                        echo '🚀 STAGE 7: Build & Push Docker Image'
+                        echo '🔧 STAGE 4: Debug Pod Identity'
+                        echo '═══════════════════════════════════════════════════════'
+                        
+                        sh '''
+                            set +e  # Don't exit on errors
+                            
+                            echo "🔐 AWS Authentication Check"
+                            echo "──────────────────────────────────────────────────────"
+                            echo "AWS_REGION: ${AWS_REGION}"
+                            echo "AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-not set}"
+                            echo "AWS_SDK_LOAD_CONFIG: ${AWS_SDK_LOAD_CONFIG:-not set}"
+                            echo "AWS_EC2_METADATA_DISABLED: ${AWS_EC2_METADATA_DISABLED:-not set}"
+                            echo ""
+                            
+                            echo "👤 Runtime Environment"
+                            echo "──────────────────────────────────────────────────────"
+                            echo "User: $(whoami)"
+                            echo "Hostname: ${HOSTNAME}"
+                            echo "Pod Name: ${POD_NAME:-not set}"
+                            echo "Pod Namespace: ${POD_NAMESPACE:-not set}"
+                            echo ""
+                            
+                            echo "🔍 Available Commands"
+                            echo "──────────────────────────────────────────────────────"
+                            which aws && echo "✅ aws-cli available" || echo "❌ aws-cli not found"
+                            which curl && echo "✅ curl available" || echo "❌ curl not found"
+                            which /kaniko/executor && echo "✅ kaniko available" || echo "❌ kaniko not found"
+                            echo ""
+                            
+                            echo "🌐 IMDS Connectivity Test (5s timeout)"
+                            echo "──────────────────────────────────────────────────────"
+                            if timeout 5 curl -s http://169.254.169.254/latest/meta-data/instance-id > /dev/null 2>&1; then
+                                echo "✅ IMDS accessible"
+                                INSTANCE_ID=$(timeout 5 curl -s http://169.254.169.254/latest/meta-data/instance-id)
+                                echo "Instance ID: ${INSTANCE_ID}"
+                            else
+                                echo "❌ IMDS not accessible (expected for Pod Identity)"
+                            fi
+                            echo ""
+                            
+                            echo "🔑 AWS STS Identity Test (10s timeout)"
+                            echo "──────────────────────────────────────────────────────"
+                            if timeout 10 aws sts get-caller-identity --region eu-north-1 2>&1; then
+                                echo "✅ Successfully authenticated with AWS"
+                            else
+                                echo "⚠️  STS call failed - checking ECR authentication method"
+                            fi
+                            echo ""
+                            
+                            echo "✅ Debug completed"
+                            set -e  # Re-enable exit on errors
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('🔧 Prepare Build Context') {
+            steps {
+                script {
+                    echo '═══════════════════════════════════════════════════════'
+                    echo '🔧 STAGE 5: Prepare Build Context'
+                    echo '═══════════════════════════════════════════════════════'
+                    echo "✅ Using Jenkins service account with ECR permissions"
+                    echo "🔐 IAM Role: ${env.JENKINS_ROLE_ARN ?: 'Using default service account role'}"
+                    echo "� Build Context: ${BUILD_CONTEXT}"
+                    echo "🐳 Dockerfile: ${DOCKERFILE_PATH}"
+                    echo "✅ Build context preparation completed"
+                }
+            }
+        }
+
+        stage('🚀 Build & Push with Kaniko') {
+            steps {
+                container('kaniko') {
+                    script {
+                        echo '═══════════════════════════════════════════════════════'
+                        echo '🚀 STAGE 6: Build & Push Docker Image'
                         echo '═══════════════════════════════════════════════════════'
                         echo "📋 Using service account IAM role for ECR authentication"
                         echo "🐳 Building image with Kaniko..."
