@@ -121,55 +121,16 @@ pipeline {
                         echo '🔧 STAGE 4: Debug Pod Identity'
                         echo '═══════════════════════════════════════════════════════'
                         
-                        sh '''
-                            set +e  # Don't exit on errors
-                            
-                            echo "🔐 AWS Authentication Check"
-                            echo "──────────────────────────────────────────────────────"
-                            echo "AWS_REGION: ${AWS_REGION}"
-                            echo "AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-not set}"
-                            echo "AWS_SDK_LOAD_CONFIG: ${AWS_SDK_LOAD_CONFIG:-not set}"
-                            echo "AWS_EC2_METADATA_DISABLED: ${AWS_EC2_METADATA_DISABLED:-not set}"
-                            echo ""
-                            
-                            echo "👤 Runtime Environment"
-                            echo "──────────────────────────────────────────────────────"
-                            echo "User: $(whoami)"
-                            echo "Hostname: ${HOSTNAME}"
-                            echo "Pod Name: ${POD_NAME:-not set}"
-                            echo "Pod Namespace: ${POD_NAMESPACE:-not set}"
-                            echo ""
-                            
-                            echo "🔍 Available Commands"
-                            echo "──────────────────────────────────────────────────────"
-                            which aws && echo "✅ aws-cli available" || echo "❌ aws-cli not found"
-                            which curl && echo "✅ curl available" || echo "❌ curl not found"
-                            which /kaniko/executor && echo "✅ kaniko available" || echo "❌ kaniko not found"
-                            echo ""
-                            
-                            echo "🌐 IMDS Connectivity Test (5s timeout)"
-                            echo "──────────────────────────────────────────────────────"
-                            if timeout 5 curl -s http://169.254.169.254/latest/meta-data/instance-id > /dev/null 2>&1; then
-                                echo "✅ IMDS accessible"
-                                INSTANCE_ID=$(timeout 5 curl -s http://169.254.169.254/latest/meta-data/instance-id)
-                                echo "Instance ID: ${INSTANCE_ID}"
-                            else
-                                echo "❌ IMDS not accessible (expected for Pod Identity)"
-                            fi
-                            echo ""
-                            
-                            echo "🔑 AWS STS Identity Test (10s timeout)"
-                            echo "──────────────────────────────────────────────────────"
-                            if timeout 10 aws sts get-caller-identity --region eu-north-1 2>&1; then
-                                echo "✅ Successfully authenticated with AWS"
-                            else
-                                echo "⚠️  STS call failed - checking ECR authentication method"
-                            fi
-                            echo ""
-                            
-                            echo "✅ Debug completed"
-                            set -e  # Re-enable exit on errors
-                        '''
+                        // Use direct commands instead of sh block
+                        try {
+                            sh '/busybox/sh -c "echo 🔐 AWS Authentication Check"'
+                            sh '/busybox/sh -c "echo AWS_REGION: $AWS_REGION"'
+                            sh '/busybox/sh -c "echo User: $(whoami)"'
+                            sh '/busybox/sh -c "ls -la /kaniko/executor && echo ✅ kaniko available || echo ❌ kaniko not found"'
+                        } catch (Exception e) {
+                            echo "⚠️ Debug commands failed: ${e.message}"
+                            echo "Continuing with build..."
+                        }
                     }
                 }
             }
@@ -197,42 +158,29 @@ pipeline {
                         echo '═══════════════════════════════════════════════════════'
                         echo '🚀 STAGE 6: Build & Push Docker Image'
                         echo '═══════════════════════════════════════════════════════'
-                        echo "📋 Using service account IAM role for ECR authentication"
-                        echo "🐳 Building image with Kaniko..."
                         
-                        sh '''
-                            set -e  # Exit on any error
+                        sh '''#!/busybox/sh
+                            set -e
                             
                             echo "🔍 Pre-build verification"
-                            echo "──────────────────────────────────────────────────────"
                             echo "AWS_REGION: ${AWS_REGION}"
-                            echo "AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-not set}"
-                            echo "ECR_REGISTRY: ${ECR_REGISTRY}"
                             echo "IMAGE_NAME: ${IMAGE_NAME}"
-                            echo "IMAGE_LATEST: ${IMAGE_LATEST}"
                             echo "BUILD_CONTEXT: ${WORKSPACE}/${BUILD_CONTEXT}"
-                            echo "DOCKERFILE: ${WORKSPACE}/${DOCKERFILE_PATH}"
-                            echo ""
-                            
-                            echo "📁 Build context contents:"
-                            ls -lah ${WORKSPACE}/${BUILD_CONTEXT}
                             echo ""
                             
                             echo "🏗️  Starting Kaniko build..."
-                            echo "──────────────────────────────────────────────────────"
-                            /kaniko/executor \\
-                              --context ${WORKSPACE}/${BUILD_CONTEXT} \\
-                              --dockerfile ${WORKSPACE}/${DOCKERFILE_PATH} \\
-                              --destination ${IMAGE_NAME} \\
-                              --destination ${IMAGE_LATEST} \\
-                              --cache=true \\
-                              --cache-ttl=24h \\
-                              --compressed-caching=false \\
-                              --snapshot-mode=redo \\
-                              --verbosity=info \\
-                              --force
+                            /kaniko/executor \
+                            --context ${WORKSPACE}/${BUILD_CONTEXT} \
+                            --dockerfile ${WORKSPACE}/${DOCKERFILE_PATH} \
+                            --destination ${IMAGE_NAME} \
+                            --destination ${IMAGE_LATEST} \
+                            --cache=true \
+                            --cache-ttl=24h \
+                            --compressed-caching=false \
+                            --snapshot-mode=redo \
+                            --verbosity=info \
+                            --force
                             
-                            echo ""
                             echo "✅ Build and push completed successfully!"
                         '''
                     }
