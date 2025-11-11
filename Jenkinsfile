@@ -41,33 +41,34 @@ pipeline {
             }
         }
         
-    stage('Debug IAM in Kaniko Pod') {
+    stage('Debug Pod Identity in Kaniko') {
         steps {
             container('kaniko') {
                 script {
                     sh '''
-                        echo "=== Checking IAM Role in Kaniko Container ==="
+                        echo "=== Checking Pod Identity in Kaniko Container ==="
                         
-                        # Check environment variables that should be injected by IRSA
-                        echo "AWS_ROLE_ARN: ${AWS_ROLE_ARN:-NOT SET ❌}"
-                        echo "AWS_WEB_IDENTITY_TOKEN_FILE: ${AWS_WEB_IDENTITY_TOKEN_FILE:-NOT SET ❌}"
+                        # Check Pod Identity environment setup
                         echo "AWS_REGION: ${AWS_REGION}"
+                        echo "AWS_DEFAULT_REGION: ${AWS_DEFAULT_REGION:-not set}"
+                        echo "AWS_SDK_LOAD_CONFIG: ${AWS_SDK_LOAD_CONFIG:-not set}"
+                        echo "AWS_EC2_METADATA_DISABLED: ${AWS_EC2_METADATA_DISABLED:-not set}"
                         
-                        # Check if service account token exists
-                        if [ -f "${AWS_WEB_IDENTITY_TOKEN_FILE}" ]; then
-                            echo "✅ Token file exists at: ${AWS_WEB_IDENTITY_TOKEN_FILE}"
-                            echo "Token content (first 50 chars):"
-                            head -c 50 "${AWS_WEB_IDENTITY_TOKEN_FILE}"
-                            echo "..."
-                        else
-                            echo "❌ Token file does NOT exist"
-                            echo "Checking /var/run/secrets/eks.amazonaws.com/serviceaccount/"
-                            ls -la /var/run/secrets/eks.amazonaws.com/serviceaccount/ 2>&1 || echo "Directory not found"
-                        fi
+                        echo "=== Testing IMDS Access ==="
+                        # Test if we can reach IMDS (Pod Identity endpoint)
+                        curl -s -m 5 http://169.254.169.254/latest/meta-data/instance-id || echo "❌ Cannot reach IMDS"
                         
-                        # Check what credentials Kaniko will use
-                        echo "=== Checking Docker config ==="
-                        cat /kaniko/.docker/config.json 2>/dev/null || echo "No docker config yet"
+                        echo "=== Testing AWS STS via Pod Identity ==="
+                        # Try to get caller identity using Pod Identity
+                        timeout 30 aws sts get-caller-identity --region eu-north-1 || echo "❌ STS call failed"
+                        
+                        echo "=== Testing ECR Authentication ==="
+                        # Test ECR authentication
+                        timeout 30 aws ecr get-authorization-token --region eu-north-1 || echo "❌ ECR auth failed"
+                        
+                        echo "=== Service Account Info ==="
+                        echo "Running as user: $(whoami)"
+                        echo "Service Account: ${HOSTNAME}"
                     '''
                 }
             }
