@@ -40,94 +40,102 @@ pipeline {
                 echo "🏗️ Build Number: ${BUILD_NUMBER}"
             }
         }
-            stage('Debug AWS Credentials in Kaniko') {
-        container('kaniko') {
-            script {
-                sh '''
-                echo "=== Testing AWS CLI in Kaniko ==="
-                which aws
-                aws --version
-                
-                echo "=== Testing STS ==="
-                aws sts get-caller-identity
-                
-                echo "=== Testing ECR Access ==="
-                aws ecr describe-repositories --region eu-north-1
-                
-                echo "=== Testing ECR Login ==="
-                aws ecr get-login-password --region eu-north-1 | head -c 50
-                echo "..."
-                
-                echo "=== Testing ECR Push Permissions ==="
-                aws ecr batch-check-layer-availability \
-                    --repository-name my-app \
-                    --layer-digests "sha256:test" \
-                    --region eu-north-1 || echo "Expected to fail but testing permissions"
-                '''
-            }
-        }
-    }
-    stage('Test Manual ECR Auth') {
-    container('kaniko') {
-        script {
-            sh '''
-            echo "=== Testing Manual ECR Authentication ==="
-            
-            # Get ECR login token and test Docker login
-            ECR_PASSWORD=$(aws ecr get-login-password --region eu-north-1)
-            echo "ECR password retrieved: ${#ECR_PASSWORD} chars"
-            
-            # Test that we can authenticate to ECR
-            echo "$ECR_PASSWORD" | docker login \
-                --username AWS \
-                --password-stdin \
-                428346553093.dkr.ecr.eu-north-1.amazonaws.com
-            '''
-        }
-    }
-}
-    stage('Debug IAM in Kaniko Pod') {
-        steps {
-            container('kaniko') {
-                script {
-                    sh '''
-                        echo "=== Checking IAM Role in Kaniko Container ==="
-                        
-                        # Check environment variables that should be injected by IRSA
-                        echo "AWS_ROLE_ARN: ${AWS_ROLE_ARN:-NOT SET ❌}"
-                        echo "AWS_WEB_IDENTITY_TOKEN_FILE: ${AWS_WEB_IDENTITY_TOKEN_FILE:-NOT SET ❌}"
-                        echo "AWS_REGION: ${AWS_REGION}"
-                        
-                        # Check if service account token exists
-                        if [ -f "${AWS_WEB_IDENTITY_TOKEN_FILE}" ]; then
-                            echo "✅ Token file exists at: ${AWS_WEB_IDENTITY_TOKEN_FILE}"
-                            echo "Token content (first 50 chars):"
-                            head -c 50 "${AWS_WEB_IDENTITY_TOKEN_FILE}"
+        
+        stage('Debug AWS Credentials in Kaniko') {
+            steps {
+                container('kaniko') {
+                    script {
+                        sh '''
+                            echo "=== Testing AWS CLI in Kaniko ==="
+                            which aws
+                            aws --version
+                            
+                            echo "=== Testing STS ==="
+                            aws sts get-caller-identity
+                            
+                            echo "=== Testing ECR Access ==="
+                            aws ecr describe-repositories --region eu-north-1
+                            
+                            echo "=== Testing ECR Login ==="
+                            aws ecr get-login-password --region eu-north-1 | head -c 50
                             echo "..."
-                        else
-                            echo "❌ Token file does NOT exist"
-                            echo "Checking /var/run/secrets/eks.amazonaws.com/serviceaccount/"
-                            ls -la /var/run/secrets/eks.amazonaws.com/serviceaccount/ 2>&1 || echo "Directory not found"
-                        fi
-                        
-                        # Check what credentials Kaniko will use
-                        echo "=== Checking Docker config ==="
-                        cat /kaniko/.docker/config.json 2>/dev/null || echo "No docker config yet"
-                    '''
+                            
+                            echo "=== Testing ECR Push Permissions ==="
+                            aws ecr batch-check-layer-availability \\
+                                --repository-name my-app \\
+                                --layer-digests "sha256:test" \\
+                                --region eu-north-1 || echo "Expected to fail but testing permissions"
+                        '''
+                    }
                 }
             }
         }
-    }
+        
+        stage('Test Manual ECR Auth') {
+            steps {
+                container('kaniko') {
+                    script {
+                        sh '''
+                            echo "=== Testing Manual ECR Authentication ==="
+                            
+                            # Get ECR login token and test Docker login
+                            ECR_PASSWORD=$(aws ecr get-login-password --region eu-north-1)
+                            echo "ECR password retrieved: ${#ECR_PASSWORD} chars"
+                            
+                            # Test that we can authenticate to ECR
+                            echo "$ECR_PASSWORD" | docker login \\
+                                --username AWS \\
+                                --password-stdin \\
+                                428346553093.dkr.ecr.eu-north-1.amazonaws.com
+                        '''
+                    }
+                }
+            }
+        }
+        
+        stage('Debug IAM in Kaniko Pod') {
+            steps {
+                container('kaniko') {
+                    script {
+                        sh '''
+                            echo "=== Checking IAM Role in Kaniko Container ==="
+                            
+                            # Check environment variables that should be injected by IRSA
+                            echo "AWS_ROLE_ARN: ${AWS_ROLE_ARN:-NOT SET ❌}"
+                            echo "AWS_WEB_IDENTITY_TOKEN_FILE: ${AWS_WEB_IDENTITY_TOKEN_FILE:-NOT SET ❌}"
+                            echo "AWS_REGION: ${AWS_REGION}"
+                            
+                            # Check if service account token exists
+                            if [ -f "${AWS_WEB_IDENTITY_TOKEN_FILE}" ]; then
+                                echo "✅ Token file exists at: ${AWS_WEB_IDENTITY_TOKEN_FILE}"
+                                echo "Token content (first 50 chars):"
+                                head -c 50 "${AWS_WEB_IDENTITY_TOKEN_FILE}"
+                                echo "..."
+                            else
+                                echo "❌ Token file does NOT exist"
+                                echo "Checking /var/run/secrets/eks.amazonaws.com/serviceaccount/"
+                                ls -la /var/run/secrets/eks.amazonaws.com/serviceaccount/ 2>&1 || echo "Directory not found"
+                            fi
+                            
+                            # Check what credentials Kaniko will use
+                            echo "=== Checking Docker config ==="
+                            cat /kaniko/.docker/config.json 2>/dev/null || echo "No docker config yet"
+                        '''
+                    }
+                }
+            }
+        }
+        
         stage('Prepare Build Context') {
             steps {
                 script {
-                    echo "� Preparing build context for Kaniko..."
+                    echo "📋 Preparing build context for Kaniko..."
                     echo "✅ Using Jenkins service account with ECR permissions"
                     echo "IAM Role: ${env.JENKINS_ROLE_ARN ?: 'Using default service account role'}"
                 }
             }
         }
-
+        
         stage('Verify Environment') {
             steps {
                 script {
@@ -148,7 +156,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Build & Push with Kaniko') {
             steps {
                 container('kaniko') {
