@@ -33,19 +33,16 @@ resource "aws_eks_cluster" "eks_cluster" {
 }
 
 # OIDC Provider for EKS (Required for IAM roles for service accounts)
-data "tls_certificate" "eks" {
-  url = aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer
-}
 
-resource "aws_iam_openid_connect_provider" "eks" {
-  client_id_list  = ["sts.amazonaws.com"]
-  thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
-  url             = aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer
 
-  tags = {
-    Name = "${var.cluster_name}-eks-oidc"
-  }
-}
+# resource "aws_iam_openid_connect_provider" "eks" {
+#   client_id_list  = ["sts.amazonaws.com"]
+#   thumbprint_list = [data.tls_certificate.eks.certificates[0].sha1_fingerprint]
+#   url             = aws_eks_cluster.eks_cluster.identity[0].oidc[0].issuer
+#   tags = {
+#     Name = "${var.cluster_name}-eks-oidc"
+#   }
+# }
 
 # IAM role for EBS CSI driver
 resource "aws_iam_role" "ebs_csi_driver" {
@@ -59,14 +56,14 @@ resource "aws_iam_role" "ebs_csi_driver" {
         Effect = "Allow"
         Sid    = ""
         Principal = {
-          Federated = aws_iam_openid_connect_provider.eks.arn
+          Federated = data.aws_iam_openid_connect_provider.oidc_provider.arn
         }
-        Condition = {
-          StringEquals = {
-            "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub": "system:serviceaccount:kube-system:ebs-csi-controller-sa"
-            "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud": "sts.amazonaws.com"
-          }
-        }
+        # Condition = {
+        #   StringEquals = {
+        #     "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:sub": "system:serviceaccount:kube-system:ebs-csi-controller-sa"
+        #     "${replace(aws_iam_openid_connect_provider.eks.url, "https://", "")}:aud": "sts.amazonaws.com"
+        #   }
+        # }
       },
     ]
   })

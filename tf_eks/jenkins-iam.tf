@@ -51,19 +51,19 @@ resource "aws_iam_policy" "jenkins_ecr" {
 # }
 resource "aws_iam_role" "jenkins" {
   name       = "AWS_EKS_Cluster_Auto_Scaler_Role"
-  depends_on = [aws_eks_cluster.eks_cluster]
   assume_role_policy = jsonencode({
     Version = "2012-10-17"
     Statement = [
       {
         Effect = "Allow"
         Principal = {
-          Federated = aws_iam_openid_connect_provider.oidc.arn
+          Federated = data.aws_iam_openid_connect_provider.oidc_provider.arn
         }
         Action = "sts:AssumeRoleWithWebIdentity"
       }
     ]
   })
+  depends_on = [aws_eks_cluster.eks_cluster]
 }
 
 resource "aws_iam_role_policy" "jenkins_ecr_push" {
