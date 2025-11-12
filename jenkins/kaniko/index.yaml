@@ -1,0 +1,55 @@
+apiVersion: v1
+kind: Pod
+metadata:
+  name: jenkins-agent-pod
+  labels:
+    app: jenkins-agent
+spec:
+  serviceAccountName: jenkins
+  containers:
+    # Jenkins inbound agent (required)
+    - name: jnlp
+      image: jenkins/inbound-agent:latest
+      imagePullPolicy: IfNotPresent
+      args: ['$(JENKINS_SECRET)', '$(JENKINS_NAME)']
+      env:
+        - name: JENKINS_URL
+          value: 'http://ITI-GP-Cluster-jenkins-alb-1202096424.eu-north-1.elb.amazonaws.com'
+      resources:
+        requests:
+          cpu: '100m'
+          memory: '256Mi'
+      volumeMounts:
+        - name: workspace-volume
+          mountPath: /home/jenkins/agent
+
+    # Additional tools
+    - name: git
+      image: alpine/git:latest
+      command: ['sleep']
+      args: ['99d']
+      tty: true
+
+    - name: kaniko
+      image: gcr.io/kaniko-project/executor:debug
+      command: ['/busybox/sleep']
+      args: ['99999']
+      tty: true
+      env:
+        - name: AWS_REGION
+          value: eu-north-1
+        - name: AWS_DEFAULT_REGION
+          value: eu-north-1
+        - name: AWS_SDK_LOAD_CONFIG
+          value: 'true'
+        - name: AWS_EC2_METADATA_DISABLED
+          value: 'false'
+        - name: AWS_METADATA_SERVICE_TIMEOUT
+          value: '10'
+        - name: AWS_METADATA_SERVICE_NUM_ATTEMPTS
+          value: '3'
+        - name: DOCKER_CONFIG
+          value: /kaniko/.docker/
+  volumes:
+    - name: workspace-volume
+      emptyDir: {}

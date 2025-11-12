@@ -1,4 +1,4 @@
-# Multi-stage build for production-ready container
+# ===== Stage 1: Builder =====
 FROM node:18-alpine AS builder
 
 # Set working directory
@@ -7,10 +7,10 @@ WORKDIR /app
 # Copy package files
 COPY package*.json ./
 
-# Install dependencies
-RUN npm ci --only=production
+# Install dependencies (production only)
+RUN npm install --omit=dev
 
-# Production stage
+# ===== Stage 2: Production =====
 FROM node:18-alpine
 
 # Install dumb-init for proper signal handling

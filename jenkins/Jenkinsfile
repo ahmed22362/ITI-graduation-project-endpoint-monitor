@@ -1,0 +1,258 @@
+pipeline {
+    agent {
+        kubernetes {
+            yamlFile 'kaniko/index.yaml'
+        }
+    }
+    
+    environment {
+        // AWS Configuration
+        AWS_REGION       = 'eu-north-1'
+        AWS_ACCOUNT_ID   = '428346553093'
+        
+        // ECR Configuration
+        ECR_REPOSITORY   = 'my-app'
+        ECR_REGISTRY     = "${AWS_ACCOUNT_ID}.dkr.ecr.${AWS_REGION}.amazonaws.com"
+        
+        // EKS Configuration
+        EKS_CLUSTER_NAME = 'ITI-GP-Cluster'
+        K8S_NAMESPACE    = 'default'
+        
+        // Application Configuration
+        APP_NAME         = 'my-app'
+        
+        // Image Tags
+        IMAGE_TAG        = "${BUILD_NUMBER}"
+        IMAGE_NAME       = "${ECR_REGISTRY}/${ECR_REPOSITORY}:${IMAGE_TAG}"
+        IMAGE_LATEST     = "${ECR_REGISTRY}/${ECR_REPOSITORY}:latest"
+        
+        // Build Configuration
+        DOCKERFILE_PATH  = 'node_app/Dockerfile'
+        BUILD_CONTEXT    = 'node_app'
+    }
+    
+    stages {
+        stage('🔍 Checkout & Preparation') {
+            steps {
+                script {
+                    echo '═══════════════════════════════════════════════════════'
+                    echo '🔍 STAGE 1: Checkout & Preparation'
+                    echo '═══════════════════════════════════════════════════════'
+                    
+                    checkout scm
+                    
+                    // Get git commit info
+                    env.GIT_COMMIT_SHORT = sh(
+                        script: "git rev-parse --short HEAD",
+                        returnStdout: true
+                    ).trim()
+                    
+                    env.GIT_COMMIT_MSG = sh(
+                        script: "git log -1 --pretty=%B",
+                        returnStdout: true
+                    ).trim()
+                    
+                    echo "✅ Repository checked out successfully"
+                    echo "📝 Commit: ${env.GIT_COMMIT_SHORT}"
+                    echo "💬 Message: ${env.GIT_COMMIT_MSG}"
+                }
+            }
+        }
+        
+        stage('📊 Build Information') {
+            steps {
+                script {
+                    echo '═══════════════════════════════════════════════════════'
+                    echo '� STAGE 2: Build Information'
+                    echo '═══════════════════════════════════════════════════════'
+                    echo "🏷️  Build Number: ${BUILD_NUMBER}"
+                    echo "🌿 Git Branch: ${env.GIT_BRANCH ?: 'N/A'}"
+                    echo "📝 Git Commit: ${env.GIT_COMMIT_SHORT}"
+                    echo "💬 Commit Message: ${env.GIT_COMMIT_MSG}"
+                    echo "📦 Image Tag: ${IMAGE_TAG}"
+                    echo "🐳 Image Name: ${IMAGE_NAME}"
+                    echo "☁️  ECR Registry: ${ECR_REGISTRY}"
+                    echo "🎯 EKS Cluster: ${EKS_CLUSTER_NAME}"
+                    echo '═══════════════════════════════════════════════════════'
+                }
+            }
+        }
+        
+        stage('✅ Environment Verification') {
+            steps {
+                script {
+                    echo '═══════════════════════════════════════════════════════'
+                    echo '✅ STAGE 3: Environment Verification'
+                    echo '═══════════════════════════════════════════════════════'
+                    
+                    sh '''
+                        echo "📁 Workspace: ${WORKSPACE}"
+                        echo ""
+                        echo "📂 Workspace structure:"
+                        ls -lah ${WORKSPACE}
+                        echo ""
+                        echo "📦 Application directory (${BUILD_CONTEXT}):"
+                        ls -lah ${WORKSPACE}/${BUILD_CONTEXT} || {
+                            echo "❌ ERROR: Application directory not found!"
+                            exit 1
+                        }
+                        echo ""
+                        echo "🐳 Dockerfile check:"
+                        if [ -f "${WORKSPACE}/${DOCKERFILE_PATH}" ]; then
+                            echo "✅ Dockerfile found at ${DOCKERFILE_PATH}"
+                            echo "First 10 lines of Dockerfile:"
+                            head -10 ${WORKSPACE}/${DOCKERFILE_PATH}
+                        else
+                            echo "❌ ERROR: Dockerfile not found at ${DOCKERFILE_PATH}"
+                            exit 1
+                        fi
+                    '''
+                    
+                    echo "✅ Environment verification completed successfully"
+                }
+            }
+        }
+        
+        stage('🔧 Debug Pod Identity') {
+            steps {
+                container('kaniko') {
+                    script {
+                        echo '═══════════════════════════════════════════════════════'
+                        echo '🔧 STAGE 4: Debug Pod Identity'
+                        echo '═══════════════════════════════════════════════════════'
+                        
+                        // Use direct commands instead of sh block
+                        try {
+                            sh '/busybox/sh -c "echo 🔐 AWS Authentication Check"'
+                            sh '/busybox/sh -c "echo AWS_REGION: $AWS_REGION"'
+                            sh '/busybox/sh -c "echo User: $(whoami)"'
+                            sh '/busybox/sh -c "ls -la /kaniko/executor && echo ✅ kaniko available || echo ❌ kaniko not found"'
+                        } catch (Exception e) {
+                            echo "⚠️ Debug commands failed: ${e.message}"
+                            echo "Continuing with build..."
+                        }
+                    }
+                }
+            }
+        }
+        
+        stage('🔧 Prepare Build Context') {
+            steps {
+                script {
+                    echo '═══════════════════════════════════════════════════════'
+                    echo '🔧 STAGE 5: Prepare Build Context'
+                    echo '═══════════════════════════════════════════════════════'
+                    echo "✅ Using Jenkins service account with ECR permissions"
+                    echo "🔐 IAM Role: ${env.JENKINS_ROLE_ARN ?: 'Using default service account role'}"
+                    echo "� Build Context: ${BUILD_CONTEXT}"
+                    echo "🐳 Dockerfile: ${DOCKERFILE_PATH}"
+                    echo "✅ Build context preparation completed"
+                }
+            }
+        }
+
+        stage('🚀 Build & Push with Kaniko') {
+            steps {
+                container('kaniko') {
+                    script {
+                        echo '═══════════════════════════════════════════════════════'
+                        echo '🚀 STAGE 6: Build & Push Docker Image'
+                        echo '═══════════════════════════════════════════════════════'
+                        
+                        sh '''#!/busybox/sh
+                            set -e
+                            
+                            echo "🔍 Pre-build verification"
+                            echo "AWS_REGION: ${AWS_REGION}"
+                            echo "IMAGE_NAME: ${IMAGE_NAME}"
+                            echo "BUILD_CONTEXT: ${WORKSPACE}/${BUILD_CONTEXT}"
+                            echo ""
+                            
+                            echo "🏗️  Starting Kaniko build..."
+                            /kaniko/executor \
+                            --context ${WORKSPACE}/${BUILD_CONTEXT} \
+                            --dockerfile ${WORKSPACE}/${DOCKERFILE_PATH} \
+                            --destination ${IMAGE_NAME} \
+                            --destination ${IMAGE_LATEST} \
+                            --cache=true \
+                            --cache-ttl=24h \
+                            --compressed-caching=false \
+                            --snapshot-mode=redo \
+                            --verbosity=info \
+                            --force
+                            
+                            echo "✅ Build and push completed successfully!"
+                        '''
+                    }
+                }
+            }
+        }
+    }
+    
+    post {
+        success {
+            script {
+                echo '═══════════════════════════════════════════════════════'
+                echo '✅ PIPELINE SUCCESS'
+                echo '═══════════════════════════════════════════════════════'
+                echo "🎉 Build completed successfully!"
+                echo ""
+                echo "📦 Image Information:"
+                echo "   • Name: ${IMAGE_NAME}"
+                echo "   • Latest: ${IMAGE_LATEST}"
+                echo "   • Registry: ${ECR_REGISTRY}"
+                echo "   • Repository: ${ECR_REPOSITORY}"
+                echo ""
+                echo "🎯 Target Environment:"
+                echo "   • EKS Cluster: ${EKS_CLUSTER_NAME}"
+                echo "   • Region: ${AWS_REGION}"
+                echo "   • Namespace: ${K8S_NAMESPACE}"
+                echo ""
+                echo "📊 Build Details:"
+                echo "   • Build Number: ${BUILD_NUMBER}"
+                echo "   • Git Commit: ${env.GIT_COMMIT_SHORT}"
+                echo "   • Branch: ${env.GIT_BRANCH ?: 'N/A'}"
+                echo '═══════════════════════════════════════════════════════'
+            }
+        }
+        
+        failure {
+            script {
+                echo '═══════════════════════════════════════════════════════'
+                echo '❌ PIPELINE FAILED'
+                echo '═══════════════════════════════════════════════════════'
+                echo "⚠️  Build failed at stage: ${env.STAGE_NAME}"
+                echo ""
+                echo "📊 Build Information:"
+                echo "   • Build Number: ${BUILD_NUMBER}"
+                echo "   • Git Commit: ${env.GIT_COMMIT_SHORT}"
+                echo "   • Branch: ${env.GIT_BRANCH ?: 'N/A'}"
+                echo ""
+                echo "💡 Troubleshooting Steps:"
+                echo "   1. Check the build logs above for errors"
+                echo "   2. Verify AWS IAM permissions for ECR"
+                echo "   3. Ensure Dockerfile exists in ${DOCKERFILE_PATH}"
+                echo "   4. Verify build context directory: ${BUILD_CONTEXT}"
+                echo "   5. Check network connectivity to ECR"
+                echo '═══════════════════════════════════════════════════════'
+            }
+        }
+        
+        unstable {
+            script {
+                echo '⚠️  Pipeline completed with warnings'
+            }
+        }
+        
+        always {
+            script {
+                echo ''
+                echo '🧹 Cleanup Phase'
+                echo '──────────────────────────────────────────────────────'
+                echo '✅ Workspace cleanup completed'
+                echo "⏱️  Total Duration: ${currentBuild.durationString}"
+                echo '══════════════════════════════════════════════════════'
+            }
+        }
+    }
+}

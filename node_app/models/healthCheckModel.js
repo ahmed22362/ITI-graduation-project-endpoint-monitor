@@ -63,6 +63,37 @@ class HealthCheckModel {
   }
 
   /**
+   * Get health check history for a service (alias for getHistory)
+   */
+  static async getHistoryByServiceId(serviceId, limit = 10) {
+    return this.getHistory(serviceId, limit);
+  }
+
+  /**
+   * Get latest health check for a service (alias for getLatest)
+   */
+  static async getLatestByServiceId(serviceId) {
+    return this.getLatest(serviceId);
+  }
+
+  /**
+   * Get overall metrics
+   */
+  static async getMetrics() {
+    const [total, healthy, unhealthy] = await Promise.all([
+      this.getTotalChecks(),
+      this.getHealthyChecks(),
+      this.getUnhealthyChecks(),
+    ]);
+
+    return {
+      total_checks: total,
+      healthy_checks: healthy,
+      unhealthy_checks: unhealthy,
+    };
+  }
+
+  /**
    * Get total checks count
    */
   static async getTotalChecks() {
