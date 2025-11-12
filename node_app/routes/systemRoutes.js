@@ -6,9 +6,9 @@
 const express = require('express');
 const router = express.Router();
 const { pool } = require('../config/database');
-const { redisClient } = require('../config/redis');
+const { getClient, checkRedisHealth } = require('../config/redis');
 const HealthCheckService = require('../services/healthCheckService');
-const { cache } = require('../config/redis');
+const { getCache } = require('../config/redis');
 const { asyncHandler } = require('../middleware/errorHandler');
 
 /**
@@ -39,8 +39,12 @@ router.get(
 
     // Check Redis
     try {
-      await redisClient.ping();
-      health.services.redis = 'healthy';
+      const redisHealth = await checkRedisHealth();
+      health.services.redis =
+        redisHealth.status === 'healthy' ? 'healthy' : 'unhealthy';
+      if (redisHealth.status !== 'healthy') {
+        health.status = 'degraded';
+      }
     } catch (error) {
       health.services.redis = 'unhealthy';
       health.status = 'degraded';
@@ -59,7 +63,7 @@ router.get(
   '/metrics',
   asyncHandler(async (req, res) => {
     // Try to get from cache
-    const cachedMetrics = await cache.get('service_metrics');
+    const cachedMetrics = await getCache('service_metrics');
 
     if (cachedMetrics) {
       return res.json({

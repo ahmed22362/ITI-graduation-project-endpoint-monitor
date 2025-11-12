@@ -8,20 +8,23 @@ let isRedisConnected = false;
  */
 const connectRedis = async () => {
   try {
+    const redisHost = process.env.REDIS_HOST || 'localhost';
+    const redisPort = process.env.REDIS_PORT || 6379;
+
     const redisConfig = {
-      host: process.env.REDIS_HOST || 'localhost',
-      port: process.env.REDIS_PORT || 6379,
-      password: process.env.REDIS_PASSWORD || undefined,
-      db: process.env.REDIS_DB || 0,
-      retryStrategy: (times) => {
-        const delay = Math.min(times * 50, 2000);
-        return delay;
+      socket: {
+        host: redisHost,
+        port: redisPort,
+        reconnectStrategy: (retries) => {
+          const delay = Math.min(retries * 50, 2000);
+          return delay;
+        },
       },
+      password: process.env.REDIS_PASSWORD || undefined,
+      database: process.env.REDIS_DB || 0,
     };
 
-    console.log(
-      `🔌 Connecting to Redis at ${redisConfig.host}:${redisConfig.port}...`
-    );
+    console.log(`🔌 Connecting to Redis at ${redisHost}:${redisPort}...`);
 
     redisClient = redis.createClient(redisConfig);
 
