@@ -25,30 +25,6 @@ resource "aws_iam_policy" "jenkins_ecr" {
   })
 }
 
-# Jenkins IAM Role (IRSA)
-# resource "aws_iam_role" "jenkins" {
-#   name               = "${var.cluster_name}-jenkins-role"
-#   assume_role_policy = jsonencode({
-#     Version = "2012-10-17"
-#     Statement = [
-#       {
-#         Effect = "Allow"
-#         Principal = {
-#           Service = "pods.eks.amazonaws.com"
-#         }
-#         Action = [
-#           "sts:AssumeRole",
-#           "sts:TagSession"
-#         ]
-#       }
-#     ]
-#   })
-
-#   tags = {
-#     Name        = "${var.cluster_name}-jenkins-role"
-#     ManagedBy   = "Terraform"
-#   }
-# }
 resource "aws_iam_role" "jenkins" {
   name       = "AWS_EKS_Cluster_Auto_Scaler_Role"
   assume_role_policy = jsonencode({
