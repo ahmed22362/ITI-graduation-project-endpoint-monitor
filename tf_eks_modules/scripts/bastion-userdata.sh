@@ -422,6 +422,14 @@ while [ $argocd_attempt -le $max_argocd_attempts ]; do
     if runuser -l ec2-user -c "kubectl wait --for=condition=Ready pod -l app.kubernetes.io/name=argocd-server -n argocd --timeout=600s" >>"$LOG_FILE" 2>&1; then
       log "✅ Argo CD server pod Ready"
       
+      # Configure Argo CD to run in insecure mode (disable TLS)
+      log "Configuring Argo CD server to run in insecure mode..."
+      runuser -l ec2-user -c "kubectl set env deployment/argocd-server -n argocd ARGOCD_SERVER_INSECURE=true" >>/var/log/argocd-install.log 2>&1 || log "⚠️ Failed to set insecure mode"
+      
+      # Wait for redeployment
+      log "Waiting for Argo CD server rollout..."
+      runuser -l ec2-user -c "kubectl rollout status deployment/argocd-server -n argocd --timeout=300s" >>"$LOG_FILE" 2>&1 || log "⚠️ Timeout waiting for argocd-server rollout"
+      
       # Patch argocd-server service to use NodePort
       log "Patching Argo CD server service to NodePort..."
       runuser -l ec2-user -c "kubectl patch svc argocd-server -n argocd -p '{\"spec\":{\"type\":\"NodePort\",\"ports\":[{\"name\":\"http\",\"port\":80,\"targetPort\":8080,\"nodePort\":30081},{\"name\":\"https\",\"port\":443,\"targetPort\":8080,\"nodePort\":30443}]}}'" >>/var/log/argocd-install.log 2>&1 || log "⚠️ Failed to patch argocd-server service"
