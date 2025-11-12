@@ -126,6 +126,14 @@ resource "aws_security_group" "jenkins_alb" {
   }
 
   ingress {
+    description = "Node.js App HTTP from anywhere"
+    from_port   = 3000
+    to_port     = 3000
+    protocol    = "tcp"
+    cidr_blocks = ["0.0.0.0/0"]
+  }
+
+  ingress {
     description = "HTTPS from anywhere"
     from_port   = 443
     to_port     = 443
@@ -182,6 +190,14 @@ resource "aws_security_group" "jenkins_nodeport" {
     description     = "Argo CD HTTPS NodePort from ALB"
     from_port       = 30443
     to_port         = 30443
+    protocol        = "tcp"
+    security_groups = [aws_security_group.jenkins_alb.id]
+  }
+
+  ingress {
+    description     = "Node.js App NodePort from ALB"
+    from_port       = 30300
+    to_port         = 30300
     protocol        = "tcp"
     security_groups = [aws_security_group.jenkins_alb.id]
   }
@@ -260,6 +276,31 @@ resource "aws_lb_target_group" "argocd" {
   }
 }
 
+# Target Group for Node.js API Health App (NodePort)
+resource "aws_lb_target_group" "node_app" {
+  name        = "${var.cluster_name}-node-app"
+  port        = 30300
+  protocol    = "HTTP"
+  vpc_id      = var.vpc_id
+  target_type = "instance"
+
+  health_check {
+    enabled             = true
+    healthy_threshold   = 2
+    interval            = 30
+    matcher             = "200"
+    path                = "/api/health"
+    port                = "30300"
+    protocol            = "HTTP"
+    timeout             = 5
+    unhealthy_threshold = 3
+  }
+
+  tags = {
+    Name = "${var.cluster_name}-node-app-tg"
+  }
+}
+
 # Network Load Balancer for Jenkins Agent
 resource "aws_lb" "jenkins_agent" {
   name               = "${var.cluster_name}-jenkins-agent-nlb"
@@ -321,6 +362,18 @@ resource "aws_lb_listener" "argocd_http" {
   }
 }
 
+# Listener for Node.js App on port 3000
+resource "aws_lb_listener" "node_http" {
+  load_balancer_arn = aws_lb.jenkins.arn
+  port              = "3000"
+  protocol          = "HTTP"
+
+  default_action {
+    type             = "forward"
+    target_group_arn = aws_lb_target_group.node_app.arn
+  }
+}
+
 # Listener for Jenkins Agent (TCP)
 resource "aws_lb_listener" "jenkins_agent" {
   load_balancer_arn = aws_lb.jenkins_agent.arn
@@ -348,6 +401,12 @@ resource "aws_autoscaling_attachment" "jenkins_web" {
 resource "aws_autoscaling_attachment" "argocd" {
   autoscaling_group_name = data.aws_autoscaling_group.eks_nodes.name
   lb_target_group_arn    = aws_lb_target_group.argocd.arn
+}
+
+# Auto Scaling Group attachment for Node.js App target group
+resource "aws_autoscaling_attachment" "node_app" {
+  autoscaling_group_name = data.aws_autoscaling_group.eks_nodes.name
+  lb_target_group_arn    = aws_lb_target_group.node_app.arn
 }
 
 # Auto Scaling Group attachment for Jenkins Agent target group
@@ -396,6 +455,17 @@ resource "aws_security_group_rule" "argocd_https_nodeport" {
   source_security_group_id = aws_security_group.jenkins_alb.id
   security_group_id        = var.eks_cluster_security_group_id
   description              = "Allow ALB to access Argo CD HTTPS NodePort"
+}
+
+# Security group rule for Node.js App NodePort access
+resource "aws_security_group_rule" "node_app_nodeport" {
+  type                     = "ingress"
+  from_port                = 30300
+  to_port                  = 30300
+  protocol                 = "tcp"
+  source_security_group_id = aws_security_group.jenkins_alb.id
+  security_group_id        = var.eks_cluster_security_group_id
+  description              = "Allow ALB to access Node.js App NodePort"
 }
 
 # Automatically update Kaniko YAML with Jenkins URL
