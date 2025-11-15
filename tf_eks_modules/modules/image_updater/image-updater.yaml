@@ -2,24 +2,6 @@ serviceAccount:
   name: argocd-image-updater
   create: true
 
-# Install AWS CLI in an init container
-extraVolumes:
-  - name: aws-cli
-    emptyDir: {}
-
-initContainers:
-  - name: install-aws-cli
-    image: amazon/aws-cli:latest
-    command:
-      - sh
-      - -c
-      - |
-        cp /usr/local/aws-cli/v2/current/bin/aws /tmp/aws-cli/
-        cp -r /usr/local/aws-cli/v2/current/dist /tmp/aws-cli/
-    volumeMounts:
-      - name: aws-cli
-        mountPath: /tmp/aws-cli
-
 # Pod Identity requires AWS SDK to be available
 # The auth script will use the pod's IAM credentials automatically
 authScripts:
@@ -27,8 +9,6 @@ authScripts:
   scripts:
     auth.sh: |
       #!/bin/sh
-      export PATH=/tmp/aws-cli:$PATH
-      export AWS_DATA_PATH=/tmp/aws-cli/dist
       aws ecr get-authorization-token --region eu-north-1 --output text --query 'authorizationData[].authorizationToken' | base64 -d
 
 config:
@@ -40,8 +20,3 @@ config:
       insecure: no
       credentials: ext:/scripts/auth.sh
       credsexpire: 10h
-
-# Mount AWS CLI into the main container
-extraVolumeMounts:
-  - name: aws-cli
-    mountPath: /tmp/aws-cli
