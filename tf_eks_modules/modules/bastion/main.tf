@@ -99,6 +99,79 @@ resource "aws_iam_role_policy" "bastion_eks" {
   })
 }
 
+resource "aws_iam_role_policy" "bastion_irsa_and_oidc" {
+  name = "${var.cluster_name}-bastion-irsa-oidc-policy"
+  role = aws_iam_role.bastion.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          "eks:DescribeCluster",
+          "eks:ListClusters",
+          "eks:DescribeClusterVersions",
+
+          # OIDC provider management
+          "iam:GetOpenIDConnectProvider",
+          "iam:ListOpenIDConnectProviders",
+          "iam:CreateOpenIDConnectProvider",
+          "iam:TagOpenIDConnectProvider",
+          "iam:DeleteOpenIDConnectProvider",
+
+          # Tagging
+          "eks:TagResource",
+
+          # CloudFormation (needed by eksctl)
+          "cloudformation:DescribeStacks",
+          "cloudformation:DescribeStackResources",
+          "cloudformation:ListStacks",
+          "cloudformation:ListStackResources",
+          "cloudformation:GetTemplateSummary",
+          "cloudformation:CreateStack"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+resource "aws_iam_role_policy" "bastion_iam_management" {
+  name = "${var.cluster_name}-bastion-iam-mgmt-policy"
+  role = aws_iam_role.bastion.id
+
+  policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      {
+        Effect = "Allow"
+        Action = [
+          # Policy operations
+          "iam:CreatePolicy",
+          "iam:DeletePolicy",
+          "iam:GetPolicy",
+          "iam:GetPolicyVersion",
+          "iam:CreatePolicyVersion",
+          "iam:SetDefaultPolicyVersion",
+          "iam:DeletePolicyVersion",
+
+          # Role operations
+          "iam:CreateRole",
+          "iam:DeleteRole",
+          "iam:PutRolePolicy",
+          "iam:AttachRolePolicy",
+          "iam:DetachRolePolicy",
+          "iam:TagRole",
+          "iam:PassRole",
+          "iam:GetRole"
+        ]
+        Resource = "*"
+      }
+    ]
+  })
+}
+
+
 resource "aws_iam_role_policy" "bastion_secrets_manager" {
   name = "${var.cluster_name}-bastion-secrets-policy"
   role = aws_iam_role.bastion.id
