@@ -110,7 +110,7 @@ resource "aws_security_group" "jenkins_alb" {
   vpc_id      = var.vpc_id
 
   ingress {
-    description = "HTTP from anywhere"
+    description = "Node.js App HTTP from anywhere"
     from_port   = 80
     to_port     = 80
     protocol    = "tcp"
@@ -126,7 +126,7 @@ resource "aws_security_group" "jenkins_alb" {
   }
 
   ingress {
-    description = "Node.js App HTTP from anywhere"
+    description = "Jenkins HTTP from anywhere"
     from_port   = 3000
     to_port     = 3000
     protocol    = "tcp"
@@ -338,15 +338,15 @@ resource "aws_lb_target_group" "jenkins_agent" {
   }
 }
 
-# Listener for Jenkins and Argo CD (HTTP with path-based routing)
-resource "aws_lb_listener" "jenkins_web_http" {
+# Listener for Node.js App on port 80
+resource "aws_lb_listener" "node_http" {
   load_balancer_arn = aws_lb.jenkins.arn
   port              = "80"
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.jenkins_web.arn
+    target_group_arn = aws_lb_target_group.node_app.arn
   }
 }
 
@@ -362,15 +362,15 @@ resource "aws_lb_listener" "argocd_http" {
   }
 }
 
-# Listener for Node.js App on port 3000
-resource "aws_lb_listener" "node_http" {
+# Listener for Jenkins on port 3000
+resource "aws_lb_listener" "jenkins_web_http" {
   load_balancer_arn = aws_lb.jenkins.arn
   port              = "3000"
   protocol          = "HTTP"
 
   default_action {
     type             = "forward"
-    target_group_arn = aws_lb_target_group.node_app.arn
+    target_group_arn = aws_lb_target_group.jenkins_web.arn
   }
 }
 
