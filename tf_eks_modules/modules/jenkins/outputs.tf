@@ -5,7 +5,7 @@ output "jenkins_role_arn" {
 
 output "jenkins_url" {
   description = "Jenkins URL via Terraform-managed ALB"
-  value       = "http://${aws_lb.jenkins.dns_name}"
+  value       = "http://${aws_lb.jenkins.dns_name}:3000"
 }
 
 output "argocd_url" {
