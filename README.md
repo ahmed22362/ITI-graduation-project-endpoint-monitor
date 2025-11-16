@@ -324,4 +324,9 @@ ITI-graduation-project-endpoint-monitor/
 **Cause:** Kaniko pod template had outdated Jenkins URL without port number.  
 **Solution:** Created automated update script (`update-jenkins-url.sh`) to sync Jenkins URL in pod template with Terraform output.
 
+
+### **5.  Ingress Failing Due to Cross-Namespace Services** 
+
+**Cause:** Jenkins, ArgoCD, and the Node app were in different namespaces from the Ingress resource, preventing the AWS Load Balancer controller from routing traffic correctly.
+**Solution:** Used TargetGroupBinding resources to reference services across namespaces (service.namespace) and attach them to a single ALB via cross-namespace IngressClass support.
 ---
