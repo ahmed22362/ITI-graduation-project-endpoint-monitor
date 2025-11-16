@@ -1,51 +1,53 @@
-# 🚀 ITI Graduation Project: Endpoint Monitor with Full GitOps Pipeline on AWS
+# ITI Graduation Project: Endpoint Monitor with Full GitOps Pipeline on AWS
 
-
-## 📋 Project Overview
+## Project Overview
 
 A production-ready **Endpoint Monitoring System** deployed using a complete GitOps pipeline on AWS. This project demonstrates modern DevOps practices including Infrastructure as Code (IaC), continuous integration/deployment, container orchestration, and secure secrets management.
 
 The system monitors web endpoints (URLs, APIs) for availability and performance, recording their status with a comprehensive monitoring dashboard.
 
-### 🎯 Key Features
+### Key Features
 
 #### Application Features
-- ✅ Real-time endpoint health monitoring
-- ✅ Performance metrics collection
-- ✅ Dark UI dashboard for status visualization
-- ✅ Historical data tracking and analysis
-- ✅ Redis caching for optimized performance
-- ✅ MySQL persistence for monitoring history
+
+- Real-time endpoint health monitoring
+- Performance metrics collection
+- Dark UI dashboard for status visualization
+- Historical data tracking and analysis
+- Redis caching for optimized performance
+- MySQL persistence for monitoring history
 
 #### DevOps & Infrastructure Features
-- ✅ Automated AWS infrastructure provisioning with Terraform
-- ✅ Kubernetes orchestration on Amazon EKS
-- ✅ CI/CD pipeline with Jenkins
-- ✅ GitOps deployment with ArgoCD
-- ✅ Automated image updates with Argo Image Updater
-- ✅ Secure secrets management with External Secrets Operator
+
+- Automated AWS infrastructure provisioning with Terraform
+- Kubernetes orchestration on Amazon EKS
+- CI/CD pipeline with Jenkins
+- GitOps deployment with ArgoCD
+- Automated image updates with Argo Image Updater
+- Secure secrets management with External Secrets Operator
 
 ---
 
 ### Component Architecture
 
 | Component | Technology | Purpose |
-|-----------|------------|---------|
+| --- | --- | --- |
 | **Application** | Node.js + Express | Backend API server for endpoint monitoring |
 | **Frontend** | HTML/CSS/JavaScript | Dark theme dashboard for visualization |
 | **Database** | AWS RDS (MySQL) | Stores monitoring history and configurations |
-| **Cache** | AWS ElastiCache (Redis) | Accelerates API responses |
+| **Cache** | Redis on Kubernetes | Accelerates API responses |
 | **Container Platform** | AWS EKS | Kubernetes orchestration |
-| **CI Pipeline** | Jenkins | Build, test, and package automation |
-| **CD Pipeline** | ArgoCD | GitOps-based deployment |
+| **CI Pipeline** | Jenkins on EKS | Build, test, and package automation with Kaniko |
+| **CD Pipeline** | Argo CD | GitOps-based deployment |
+| **Auto-sync** | Argo Image Updater | Automatic image updates from ECR |
 | **Infrastructure** | Terraform | IaC for AWS resources |
-| **Secrets** | External Secrets Operator | Secure credential management |
+| **Secrets** | External Secrets Operator + AWS Secrets Manager | Secure credential management |
 | **Registry** | AWS ECR | Container image storage |
-| **Monitoring** | CloudWatch + Prometheus | System and application metrics |
+| **Load Balancer** | AWS ALB | Multi-port routing (80, 3000, 8080) |
 
 ---
 
-## 🚦 Setup Instructions
+## Setup Instructions
 
 ### Prerequisites
 
@@ -57,7 +59,7 @@ The system monitors web endpoints (URLs, APIs) for availability and performance,
 - Git
 - Node.js >= 16.x (for local development)
 
-### 🔧 Complete Setup Guide
+### Complete Setup Guide
 
 #### Step 1: Clone the Repository
 
@@ -70,110 +72,91 @@ cd ITI-graduation-project-endpoint-monitor
 
 ```bash
 # Navigate to terraform directory
-cd terraform
+cd tf_eks_modules
 
 # Initialize Terraform
-terraform init -backend-config=environments/dev/backend.tfvars
+terraform init
 
 # Review the plan
-terraform plan -var-file=environments/dev/terraform.tfvars
+terraform plan
 
 # Apply infrastructure
-terraform apply -var-file=environments/dev/terraform.tfvars -auto-approve
+terraform apply -auto-approve
 
 # Save the EKS cluster details
-aws eks update-kubeconfig --region us-east-1 --name endpoint-monitor-cluster
+aws eks update-kubeconfig --region eu-north-1 --name ITI-GP-Cluster
 ```
 
 This creates:
-- VPC with public/private subnets across 3 AZs
-- EKS cluster with managed node groups
+
+- VPC with public/private subnets across 2 AZs
+- EKS cluster (ITI-GP-Cluster) with managed node groups
 - RDS MySQL instance
-- ElastiCache Redis cluster
+- AWS Secrets Manager for credentials
 - ECR repository
+- Jenkins on EKS with ALB (port 3000)
+- Argo CD with ALB (port 8080)
+- Node.js app with ALB (port 80)
+- Bastion host for secure access
+- External Secrets Operator with IRSA
+- Argo Image Updater for GitOps automation
 - IAM roles and policies
-- Security groups and NACLs
+- Security groups and network ACLs
 
-#### Step 3: Install Kubernetes Components
-
-```bash
-# Install ArgoCD
-kubectl create namespace argocd
-kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
-
-# Install External Secrets Operator
-helm repo add external-secrets https://charts.external-secrets.io
-helm install external-secrets \
-  external-secrets/external-secrets \
-  -n external-secrets-system \
-  --create-namespace
-
-# Install metrics server (for HPA)
-kubectl apply -f https://github.com/kubernetes-sigs/metrics-server/releases/latest/download/components.yaml
-```
-
-#### Step 4: Configure Jenkins
+#### Step 3: Access Infrastructure Components
 
 ```bash
-# Deploy Jenkins to EKS
-kubectl apply -f kubernetes/jenkins/
+# Get Terraform outputs
+cd tf_eks_modules
+terraform output
 
-# Get Jenkins admin password
-kubectl exec -n jenkins jenkins-0 -- cat /var/jenkins_home/secrets/initialAdminPassword
+# Access Jenkins (port 3000)
+# URL from output: jenkins_url
+open $(terraform output -raw jenkins_url)
 
-# Access Jenkins UI (port-forward or through LoadBalancer)
-kubectl port-forward -n jenkins svc/jenkins 8080:8080
+# Access Argo CD (port 8080)
+# URL from output: argocd_url
+open $(terraform output -raw argocd_url)
+
+# Access Node.js Application (port 80)
+# URL: http://<alb-dns-name>
+open "http://$(terraform output -raw jenkins_alb_dns)"
+
+# SSH to Bastion Host
+ssh -i ./keys/ITI-GP-Cluster_bastion_key.pem ec2-user@$(terraform output -raw bastion_public_ip)
 ```
 
-#### Step 5: Setup Application Secrets
+#### Step 4: Deploy the Application via GitOps
 
 ```bash
-# Create secrets in AWS Secrets Manager
-aws secretsmanager create-secret \
-  --name endpoint-monitor/mysql \
-  --secret-string '{"username":"admin","password":"SecurePass123!","host":"mysql.rds.amazonaws.com"}'
+# Application is automatically deployed through the GitOps pipeline:
+# 1. Jenkins builds and pushes Docker image to ECR on code push
+# 2. Argo Image Updater detects new image
+# 3. Argo CD syncs the updated manifest to EKS
 
-aws secretsmanager create-secret \
-  --name endpoint-monitor/redis \
-  --secret-string '{"password":"RedisPass123!","host":"redis.cache.amazonaws.com"}'
+# Apply application manifests (if manual deployment needed)
+kubectl apply -k app-manifests/
 
-# Apply External Secret configuration
-kubectl apply -f kubernetes/external-secrets/
+# Check deployment status
+kubectl get pods -A
+kubectl get svc -A
+
+# View application logs
+kubectl logs -f deployment/node-app -n default
+kubectl logs -f deployment/mysql -n default
+kubectl logs -f deployment/redis -n default
 ```
 
-#### Step 6: Deploy the Application
-
-```bash
-# Using kubectl directly
-kubectl apply -f kubernetes/namespaces/
-kubectl apply -f kubernetes/configmaps/
-kubectl apply -f kubernetes/deployments/
-kubectl apply -f kubernetes/services/
-
-# OR using ArgoCD (recommended)
-kubectl apply -f kubernetes/argocd-apps/endpoint-monitor-app.yaml
-```
-
-#### Step 7: Configure DNS and Access
-
-```bash
-# Get the LoadBalancer URL
-kubectl get svc endpoint-monitor-ui -n production
-
-# Update Route53 or your DNS provider with the LoadBalancer endpoint
-# Access the application at: https://monitor.yourdomain.com
-```
-
-### 🐳 Local Development Setup
+### Local Development Setup
 
 For development and testing locally:
 
 ```bash
 # Start MySQL and Redis with Docker Compose
+cd node_app
 docker-compose up -d
 
 # Install Node.js dependencies
-cd node-app
 npm install
 
 # Set environment variables
@@ -186,12 +169,40 @@ export REDIS_PORT=6379
 # Run the application
 npm start
 
+# Run tests
+npm test
+
 # Access at http://localhost:3000
 ```
 
 ---
 
-## 📈 CI/CD Flow Explanation
+## Accessing Deployed Services
+
+After successful Terraform deployment, access your services using the ALB DNS:
+
+```bash
+# Get ALB DNS name
+cd tf_eks_modules
+ALB_DNS=$(terraform output -raw jenkins_alb_dns)
+
+# Service URLs:
+# Node.js Application:  http://<ALB_DNS>         (Port 80)
+# Jenkins:              http://<ALB_DNS>:3000    (Port 3000)
+# Argo CD:              http://<ALB_DNS>:8080    (Port 8080)
+```
+
+**Example:**
+
+```
+http://ITI-GP-Cluster-apps-alb-1230796949.eu-north-1.elb.amazonaws.com       # Node App
+http://ITI-GP-Cluster-apps-alb-1230796949.eu-north-1.elb.amazonaws.com:3000  # Jenkins
+http://ITI-GP-Cluster-apps-alb-1230796949.eu-north-1.elb.amazonaws.com:8080  # Argo CD
+```
+
+---
+
+## CI/CD Flow Explanation
 
 ### Complete GitOps Pipeline Flow
 
@@ -223,56 +234,85 @@ Developer → GitHub → Jenkins → ECR → ArgoCD → EKS Cluster
     └─► Git push/merge to main branch
 ```
 
-
-## Project Structure 
+## Project Structure
 
 ```
-endpoint-monitor-gitops/
+ITI-graduation-project-endpoint-monitor/
 │
-├── README.md   •  LICENSE   •  .gitignore   •  docker-compose.yml
+├── README.md
+├── github_token
 │
-├── node-app/
-│     → package.json   •   server.js   •   Dockerfile
-│     → src/ (controllers • models • routes • services)
-│     → public/ (index.html • css/ • js/)
+├── node_app/                          # Node.js Application
+│   ├── app.js
+│   ├── package.json
+│   ├── Dockerfile
+│   ├── docker-compose.yml
+│   ├── init.sql
+│   ├── config/                        # Database & Redis config
+│   ├── middleware/                    # Error handling & validation
+│   ├── models/                        # Data models
+│   ├── routes/                        # API routes
+│   ├── services/                      # Business logic
+│   ├── views/                         # HTML pages
+│   ├── public/                        # Static assets (CSS, JS, images)
+│   └── tests/                         # Jest test suite
 │
-├── terraform/
-│     → main.tf • variables.tf • outputs.tf
-│     → modules/ (vpc • eks • rds • redis)
-│     → environments/ (dev • staging • production)
+├── tf_eks_modules/                    # Terraform Infrastructure
+│   ├── main.tf
+│   ├── outputs.tf
+│   ├── variable.tf
+│   ├── terraform.tfvars
+│   ├── modules/
+│   │   ├── vpc/                       # VPC, subnets, NAT, IGW
+│   │   ├── eks/                       # EKS cluster & node groups
+│   │   ├── rds/                       # MySQL RDS instance
+│   │   ├── ecr/                       # Container registry
+│   │   ├── jenkins/                   # Jenkins + ALB
+│   │   ├── bastion/                   # Bastion host for SSH access
+│   │   ├── secretManager/             # AWS Secrets Manager
+│   │   ├── external-secrets/          # External Secrets Operator
+│   │   └── image_updater/             # Argo Image Updater
+│   ├── scripts/                       # Helper scripts
+│   └── keys/                          # SSH keys (gitignored)
 │
-├── kubernetes/
-│     → base/ (namespace.yaml • deployment.yaml • service.yaml • configmap.yaml)
-│     → overlays/ (dev • staging • production)
-│     → argocd-apps/ (endpoint-monitor.yaml)
+├── app-manifests/                     # Kubernetes Manifests
+│   ├── kustomization.yaml
+│   ├── mysql/                         # MySQL deployment
+│   ├── redis/                         # Redis deployment
+│   └── node-app/                      # Node.js app deployment
 │
-├── jenkins/
-│     → Jenkinsfile
-│     → scripts/ (build.sh • test.sh • deploy.sh)
-│
-├── scripts/
-│     → setup-cluster.sh • install-tools.sh • cleanup.sh
-│
-└── docs/
-      → ARCHITECTURE.md • SECURITY.md • MONITORING.md • TROUBLESHOOTING.md
+└── jenkins/                           # CI/CD Configuration
+    ├── Jenkinsfile                    # Pipeline definition
+    └── kaniko/                        # Kaniko build configuration
+        ├── index.yaml                 # Pod template
+        └── update-jenkins-url.sh      # Auto-update script
 ```
-
 
 ## Solved Issues
 
-### **1. ArgoCD Image Updater Not Detecting New Images**
-**Cause:** Incorrect update strategy and mismatched tag regex pattern.  
-**Solution:** Fixed update strategy and corrected regex to match actual tag format.
+### **1. CI/CD Infinite Loop Between Jenkins and Argo Image Updater**
 
-### **2. GitHub Authentication Failed (Wrong Secret Format)**
-**Cause:** GitHub token stored as a key/value JSON object instead of plain text.  
-**Solution:** Recreated secret as raw text and updated CI workflow.
+**Cause:** Jenkins builds triggered by Argo Image Updater commits, creating new images, which trigger Argo updates in an endless cycle.  
+**Solution:** Added commit detection stage in Jenkinsfile to skip builds from argocd-image-updater commits with pattern matching.
 
-### **3. ArgoCD Could Not Authenticate to ECR**
-**Cause:** Missing IAM permissions for private ECR access.  
-**Solution:** Added IRSA + ECR access policy for ArgoCD.
+### **2. AWS Secrets Manager - Secret Scheduled for Deletion**
+
+**Cause:** Attempting to recreate a secret that was previously deleted and is in the recovery window.  
+**Solution:** Restored the secret using `aws secretsmanager restore-secret` or used force-delete to remove permanently.
+
+### **3. Redis Cache TypeError in Node Application**
+
+**Cause:** Cache object not properly exported from redis.js configuration file.  
+**Solution:** Added proper cache object export with get/set/del/clear methods.
+
+### **4. Port Conflict - Jenkins and Node App**
+
+**Cause:** Both services initially configured on same ALB listener port causing conflicts.  
+**Solution:** Swapped ports via Terraform - Jenkins on 3000, Node app on 80, Argo CD on 8080. Updated all references including Kaniko pod template.
+
+### **5. Jenkins Agent Connection Failures**
+
+**Cause:** Kaniko pod template had outdated Jenkins URL without port number.  
+**Solution:** Created automated update script (`update-jenkins-url.sh`) to sync Jenkins URL in pod template with Terraform output.
 
 ---
-
-
-
