@@ -6,6 +6,15 @@ A production-ready **Endpoint Monitoring System** deployed using a complete GitO
 
 The system monitors web endpoints (URLs, APIs) for availability and performance, recording their status with a comprehensive monitoring dashboard.
 
+### Diagrams 
+
+### Project Flow Diagram 
+![diagrams/project](diagrams/project-flow-diagram.png)
+
+### Infrastructure Terraform 
+![alt text](diagrams/Infrastructure-terraform.png)
+
+
 ### Key Features
 
 #### Application Features
