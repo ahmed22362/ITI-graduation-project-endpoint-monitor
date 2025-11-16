@@ -52,9 +52,79 @@ pipeline {
                         returnStdout: true
                     ).trim()
                     
+                    env.GIT_AUTHOR = sh(
+                        script: "git log -1 --pretty=%an",
+                        returnStdout: true
+                    ).trim()
+                    
+                    env.GIT_COMMITTER_EMAIL = sh(
+                        script: "git log -1 --pretty=%ce",
+                        returnStdout: true
+                    ).trim()
+                    
                     echo "✅ Repository checked out successfully"
                     echo "📝 Commit: ${env.GIT_COMMIT_SHORT}"
                     echo "💬 Message: ${env.GIT_COMMIT_MSG}"
+                    echo "👤 Author: ${env.GIT_AUTHOR}"
+                    echo "📧 Email: ${env.GIT_COMMITTER_EMAIL}"
+                }
+            }
+        }
+        
+        stage('🔄 Check for Image Updater Commit') {
+            steps {
+                script {
+                    echo '═══════════════════════════════════════════════════════'
+                    echo '🔄 STAGE 2: Check for Argo Image Updater Commit'
+                    echo '═══════════════════════════════════════════════════════'
+                    
+                    // Check if commit is from Argo Image Updater
+                    def skipBuild = false
+                    def skipReason = ""
+                    
+                    // Check commit message patterns
+                    if (env.GIT_COMMIT_MSG =~ /(?i)build.*image tag to.*/ || 
+                        env.GIT_COMMIT_MSG =~ /(?i)update.*image.*/ ||
+                        env.GIT_COMMIT_MSG =~ /(?i)automatic.*update.*/) {
+                        skipBuild = true
+                        skipReason = "Commit message matches Image Updater pattern: '${env.GIT_COMMIT_MSG}'"
+                    }
+                    
+                    // Check author name
+                    if (env.GIT_AUTHOR =~ /(?i)argocd.*/ || 
+                        env.GIT_AUTHOR =~ /(?i).*image.*updater.*/ ||
+                        env.GIT_AUTHOR == 'argocd-image-updater') {
+                        skipBuild = true
+                        skipReason = "Commit author is Image Updater: '${env.GIT_AUTHOR}'"
+                    }
+                    
+                    // Check email
+                    if (env.GIT_COMMITTER_EMAIL =~ /(?i).*argocd.*/ || 
+                        env.GIT_COMMITTER_EMAIL =~ /(?i).*noreply.*/) {
+                        skipBuild = true
+                        skipReason = "Commit email matches Image Updater: '${env.GIT_COMMITTER_EMAIL}'"
+                    }
+                    
+                    if (skipBuild) {
+                        echo '🛑 SKIPPING BUILD - Argo Image Updater Commit Detected'
+                        echo "───────────────────────────────────────────────────────"
+                        echo "🔍 Reason: ${skipReason}"
+                        echo "📝 Commit: ${env.GIT_COMMIT_SHORT}"
+                        echo "👤 Author: ${env.GIT_AUTHOR}"
+                        echo "📧 Email: ${env.GIT_COMMITTER_EMAIL}"
+                        echo "💬 Message: ${env.GIT_COMMIT_MSG}"
+                        echo "───────────────────────────────────────────────────────"
+                        echo "✅ This prevents infinite CI/CD loop"
+                        echo "═══════════════════════════════════════════════════════"
+                        
+                        currentBuild.result = 'NOT_BUILT'
+                        currentBuild.description = "⏭️ Skipped: Image Updater commit"
+                        error("Skipping build: Argo Image Updater commit detected")
+                    } else {
+                        echo "✅ This is a regular commit - proceeding with build"
+                        echo "👤 Author: ${env.GIT_AUTHOR}"
+                        echo "💬 Message: ${env.GIT_COMMIT_MSG}"
+                    }
                 }
             }
         }
@@ -63,7 +133,7 @@ pipeline {
             steps {
                 script {
                     echo '═══════════════════════════════════════════════════════'
-                    echo '� STAGE 2: Build Information'
+                    echo '📊 STAGE 3: Build Information'
                     echo '═══════════════════════════════════════════════════════'
                     echo "🏷️  Build Number: ${BUILD_NUMBER}"
                     echo "🌿 Git Branch: ${env.GIT_BRANCH ?: 'N/A'}"
@@ -82,7 +152,7 @@ pipeline {
             steps {
                 script {
                     echo '═══════════════════════════════════════════════════════'
-                    echo '✅ STAGE 3: Environment Verification'
+                    echo '✅ STAGE 4: Environment Verification'
                     echo '═══════════════════════════════════════════════════════'
                     
                     sh '''
@@ -118,7 +188,7 @@ pipeline {
                 container('kaniko') {
                     script {
                         echo '═══════════════════════════════════════════════════════'
-                        echo '🔧 STAGE 4: Debug Pod Identity'
+                        echo '🔧 STAGE 5: Debug Pod Identity'
                         echo '═══════════════════════════════════════════════════════'
                         
                         // Use direct commands instead of sh block
@@ -140,7 +210,7 @@ pipeline {
             steps {
                 script {
                     echo '═══════════════════════════════════════════════════════'
-                    echo '🔧 STAGE 5: Prepare Build Context'
+                    echo '🔧 STAGE 6: Prepare Build Context'
                     echo '═══════════════════════════════════════════════════════'
                     echo "✅ Using Jenkins service account with ECR permissions"
                     echo "🔐 IAM Role: ${env.JENKINS_ROLE_ARN ?: 'Using default service account role'}"
@@ -156,7 +226,7 @@ pipeline {
                 container('kaniko') {
                     script {
                         echo '═══════════════════════════════════════════════════════'
-                        echo '🚀 STAGE 6: Build & Push Docker Image'
+                        echo '🚀 STAGE 7: Build & Push Docker Image'
                         echo '═══════════════════════════════════════════════════════'
                         
                         sh '''#!/busybox/sh
